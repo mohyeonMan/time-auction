@@ -126,13 +126,13 @@ public abstract class ServerEvent {
 
     @Getter @Setter @NoArgsConstructor
     public static class RoundInConfirmEvent extends ServerEvent {
-        private String roomId;
+        private String gameId;
         private String roundId;
         private boolean success;
         
-        public RoundInConfirmEvent(String roomId, String roundId, boolean success, LocalDateTime sentAt) {
+        public RoundInConfirmEvent(String gameId, String roundId, boolean success, LocalDateTime sentAt) {
             super(ServerEventType.ROUND_IN_CONFIRM, sentAt);
-            this.roomId = roomId;
+            this.gameId = gameId;
             this.roundId = roundId;
             this.success = success;
         }
@@ -140,13 +140,13 @@ public abstract class ServerEvent {
 
     @Getter @Setter @NoArgsConstructor
     public static class RoundOutConfirmEvent extends ServerEvent {
-        private String roomId;
+        private String gameId;
         private String roundId;
         private boolean success;
         
-        public RoundOutConfirmEvent(String roomId, String roundId, boolean success, LocalDateTime sentAt) {
+        public RoundOutConfirmEvent(String gameId, String roundId, boolean success, LocalDateTime sentAt) {
             super(ServerEventType.ROUND_OUT_CONFIRM, sentAt);
-            this.roomId = roomId;
+            this.gameId = gameId;
             this.roundId = roundId;
             this.success = success;
         }

@@ -1,5 +1,6 @@
 package com.jhpark.time_auction.common.redis.handler.publish;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 import org.springframework.stereotype.Service;
@@ -10,6 +11,9 @@ import com.jhpark.time_auction.common.ws.handler.SessionManager;
 import com.jhpark.time_auction.common.ws.handler.publish.MessagePublisher;
 import com.jhpark.time_auction.common.ws.model.in.ClientEvent;
 import com.jhpark.time_auction.common.ws.model.in.ClientEventType;
+import com.jhpark.time_auction.common.ws.model.in.ClientEvent.ChatEvent;
+import com.jhpark.time_auction.common.ws.model.in.ClientEvent.NotReadyEvent;
+import com.jhpark.time_auction.common.ws.model.in.ClientEvent.ReadyEvent;
 import com.jhpark.time_auction.common.ws.model.out.ServerEvent;
 
 import lombok.RequiredArgsConstructor;
@@ -28,21 +32,81 @@ public class RoomEventHandler implements PublishEventHandler {
     public Set<ClientEventType> supports() {
         return Set.of(
             ClientEventType.CHAT,
-            ClientEventType.ROUND_IN, 
-            ClientEventType.ROUND_OUT,
+            // ClientEventType.ROUND_IN, 
+            // ClientEventType.ROUND_OUT,
             ClientEventType.READY,
-            ClientEventType.ROUND_OUT
+            ClientEventType.NOT_READY
         );
     }
 
     @Override
     public void handle(WebSocketSession session, ClientEvent event) {
-        sessionManager.renewExpiration(session.getId());
 
-        sessionManager.sendToSession(session, new ServerEvent.PongEvent(event.getSentAt()));
-
-        log.info("PONG : {}", session.getId());
+        final ClientEventType type = event.getType();
         
+        switch (type) {
+            case CHAT -> handleChatEvent(session, event);
+            // case ROUND_IN -> handleRoundInEvent(session, event);
+            // case ROUND_OUT -> handleRoundOutEvent(session, event);
+            case READY -> handleReadyEvent(session, event);
+            case NOT_READY -> handleNotReadyEvent(session, event);
+
+            default -> throw new RuntimeException();
+        }
+
     }
 
+    public String getDestination(String roomId){
+        return ROOM_PREFIX + roomId;
+    }
+
+    private void handleChatEvent(WebSocketSession session, ClientEvent event){
+        final ChatEvent chatEvent = (ChatEvent) event;
+        final String sessionKey = sessionManager.getSessionKey(session.getId());
+        final String message = chatEvent.getMessage();
+        final String roomId = chatEvent.getRoomId();
+        final LocalDateTime sentAt = chatEvent.getSentAt();
+
+        final String dest = getDestination(roomId);
+
+        ServerEvent.ChatEvent serverChatEvent = 
+            new ServerEvent.ChatEvent(
+                    sessionKey, 
+                    message, 
+                    roomId, 
+                    sentAt
+                );
+        messagePublisher.publish(dest, serverChatEvent);
+    };
+
+    // private void handleRoundInEvent(WebSocketSession session, ClientEvent event){
+    //     final RoundInEvent roundInEvent = (RoundInEvent) event;
+    //     final String gameId = roundInEvent.getGameId();
+    //     final String roundId = roundInEvent.getRoundId();
+    //     final LocalDateTime sentAt = roundInEvent.getSentAt();
+        
+    //     sessionManager.sendToSession(session, 
+    //         new ServerEvent.RoundInConfirmEvent(gameId, roundId, true, sentAt)
+    //     );
+
+    // };
+
+    // private void handleRoundOutEvent(WebSocketSession session, ClientEvent event){
+    //     RoundOutEvent roundOutEvent = (RoundOutEvent) event;
+    //     final String gameId = roundOutEvent.getGameId();
+    //     final String roundId = roundOutEvent.getRoundId();
+    //     final LocalDateTime sentAt = roundOutEvent.getSentAt();
+        
+    //     sessionManager.sendToSession(session, 
+    //         new ServerEvent.RoundInConfirmEvent(gameId, roundId, true, sentAt)
+    //     );
+    // };
+
+    private void handleReadyEvent(WebSocketSession session, ClientEvent event){
+        ReadyEvent readyEvent = (ReadyEvent) event;
+    };
+
+    private void handleNotReadyEvent(WebSocketSession session, ClientEvent event){
+        NotReadyEvent notReadyEvent = (NotReadyEvent) event;
+    };
 }
