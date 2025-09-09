@@ -45,14 +45,16 @@ public class IndividualEventHandler implements PublishEventHandler {
         switch (type) {
             case ROUND_IN -> handleRoundInEvent(session, event);
             case ROUND_OUT -> handleRoundOutEvent(session, event);
+            case TIME_START -> handleRoundInEvent(session, event);
+            case TIME_END -> handleRoundInEvent(session, event);
 
             default -> throw new RuntimeException();
         }
 
     }
 
-    public String getDestination(){
-        return null;
+    public String getDestination(String nodeId, String sessionKey){
+        return NODE_PREFIX+nodeId+SESSION_INFIX+sessionKey;
     }
 
     private void handleRoundInEvent(WebSocketSession session, ClientEvent event){
@@ -60,6 +62,8 @@ public class IndividualEventHandler implements PublishEventHandler {
         final String gameId = roundInEvent.getGameId();
         final String roundId = roundInEvent.getRoundId();
         final LocalDateTime sentAt = roundInEvent.getSentAt();
+
+        // 해당 라운드 경매 참여처리
         
         sessionManager.sendToSession(session, 
             new ServerEvent.RoundInConfirmEvent(gameId, roundId, true, sentAt)
@@ -73,8 +77,10 @@ public class IndividualEventHandler implements PublishEventHandler {
         final String roundId = roundOutEvent.getRoundId();
         final LocalDateTime sentAt = roundOutEvent.getSentAt();
         
+        //해당 라운드 경매 미참여처리
+
         sessionManager.sendToSession(session, 
-            new ServerEvent.RoundInConfirmEvent(gameId, roundId, true, sentAt)
+            new ServerEvent.RoundOutConfirmEvent(gameId, roundId, true, sentAt)
         );
     };
 }
