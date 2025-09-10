@@ -13,13 +13,19 @@ public interface RoomRepository {
 
     Room updateMasterId(String roomId);
 
-    Room expireRoom();
-
     RoomEntry saveRoomEntry(String roomId, String sessionId);
 
     RoomEntry deleteRoomEntryByRoomEntryId(String roomEntryId);
 
     List<RoomEntry> getRoomEntriesByRoomId(String roomId);
+
+    RoomEntry getEntryById(String roomEntryId);
+
+    boolean ready(String roomId, String roomEntryId);
+    
+    boolean unready(String roomId, String roomEntryId);
+
+    boolean isAllReady(String roomId);
 
 
 }

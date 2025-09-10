@@ -13,4 +13,10 @@ public interface GameService {
 
     Round endRound(String gameId);
     
+    Round roundIn(String roundId, String sessionKey);
+
+    Round roundOut(String roundId, String sessionKey);
+
+    
+
 }

@@ -4,20 +4,23 @@ import java.util.List;
 
 import com.jhpark.time_auction.room.model.Room;
 import com.jhpark.time_auction.room.model.RoomEntry;
-import com.jhpark.time_auction.user.model.User;
 
 public interface RoomService {
 
-    void createRoom(Room room);
+    Room createRoom(String roomName, String sessionKey);
 
-    void deleteRoom(Room room);
+    Room deleteRoom(String roomId);
 
     List<RoomEntry> getEntriesByRoomId(String roomId);
 
-    RoomEntry joinRoom(String roomId, User user);
+    boolean isAllReadyToPlay(String roomId);
 
-    RoomEntry leftRoom(String roomId, User user);
+    RoomEntry joinRoom(String roomId, String sessionKey);
 
-    void keepAlive(String roomId);
+    RoomEntry leftRoom(String roomId, String sessionKey);
+
+    boolean ready(String roomEntryId);
+
+    boolean unready(String roomEntryId);
 
 }

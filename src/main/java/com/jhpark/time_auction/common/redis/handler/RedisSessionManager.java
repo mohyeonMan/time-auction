@@ -1,133 +1,95 @@
 package com.jhpark.time_auction.common.redis.handler;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jhpark.time_auction.common.redis.model.SessionInfo;
+import com.jhpark.time_auction.common.redis.util.RedisTemplateUtil;
 import com.jhpark.time_auction.common.ws.config.WebSocketConfig.NodeId;
 import com.jhpark.time_auction.common.ws.handler.SessionManager;
 import com.jhpark.time_auction.common.ws.model.out.ServerEvent;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class RedisSessionManager implements SessionManager {
 
-    private final ConcurrentMap<String, WebSocketSession> sessions = new ConcurrentHashMap<>(); // <sessionId, session>;
-    private final ConcurrentMap<String, String> sessionKeyToId = new ConcurrentHashMap<>(); // <sessionKey, sessionId>;
-    private final ConcurrentMap<String, String> sessionIdToKey = new ConcurrentHashMap<>(); // <sessionId, sessionKey>;
+    private static final Duration SESSION_TTL = Duration.ofSeconds(30);
+    private static final String NS = "ws:session"; // namespace
 
-    private final static String SESSION_PREFIX = "ws:session:";
+    private final ConcurrentMap<String, WebSocketSession> sessions = new ConcurrentHashMap<>(); // <sessionId, session>
+    private final ConcurrentMap<String, String> sessionKeyToId = new ConcurrentHashMap<>();     // <sessionKey, sessionId>
+    private final ConcurrentMap<String, String> sessionIdToKey = new ConcurrentHashMap<>();     // <sessionId, sessionKey>
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final RedisTemplateUtil redisUtil;
     private final ObjectMapper objectMapper;
 
-    public RedisSessionManager(
-            RedisTemplate<String, Object> redisTemplate,
-            ObjectMapper objectMapper) {
-        this.redisTemplate = redisTemplate;
-        this.objectMapper = objectMapper;
-    }
-
-    /**
-     * 새로운 세션을 추가합니다.
-     * 
-     * @param session 추가할 웹소켓 세션
-     */
-
+    /** 세션 추가 */
     public WebSocketSession addSession(WebSocketSession session) {
-        String sessionId = session.getId();
-        String sessionKey = getRandomSessionKey();
-        String nodeId = NodeId.ID;
+        final String sessionId = session.getId();
+        final String sessionKey = newRandomSessionKey();
+        final String nodeId = NodeId.ID;
 
-        // 1. Redis에 저장할 SessionInfo 객체 생성
+        // 1) Redis 저장 (TTL 포함)
         SessionInfo sessionInfo = new SessionInfo(sessionKey, nodeId);
+        String redisKey = redisSessionKey(sessionKey); // ws:session:{<sessionKey>}
+        redisUtil.set(redisKey, sessionInfo, SESSION_TTL);
 
-        // 2. Redis에 저장 (만료 시간 설정 포함)
-        String redisSessionKey = getRedisSessionKey(sessionKey);
-
-        // opsForValue()를 사용하여 String-Value 기반의 Redis 명령을 실행
-        redisTemplate.opsForValue().set(redisSessionKey, sessionInfo, Duration.ofSeconds(30));
-
-        // 3. 로컬 메모리에 저장
+        // 2) 로컬 캐시
         sessions.put(sessionId, session);
         sessionKeyToId.put(sessionKey, sessionId);
         sessionIdToKey.put(sessionId, sessionKey);
 
+        log.debug("세션 등록: sessionId={}, sessionKey={}, redisKey={}", sessionId, sessionKey, redisKey);
         return session;
     }
 
-    /**
-     * 세션을 제거합니다.
-     * 
-     * @param sessionId 제거할 웹소켓 세션 아이디
-     */
+    /** 세션 제거 */
     public WebSocketSession removeSession(WebSocketSession session) {
-        String sessionId = session.getId();
-        String sessionKey = sessionIdToKey.get(sessionId);
+        final String sessionId = session.getId();
+        final String sessionKey = sessionIdToKey.remove(sessionId);
 
         if (sessionKey != null) {
-            // 1. 로컬 메모리에서 세션 정보 삭제
             sessions.remove(sessionId);
             sessionKeyToId.remove(sessionKey);
-            sessionIdToKey.remove(sessionId);
 
-            // 2. Redis에서 세션 정보 삭제
-            String redisKey = getRedisSessionKey(sessionKey);
-            redisTemplate.delete(redisKey);
-
-            log.info("세션 제거: " + sessionId + " (Redis Key: " + redisKey + ")");
+            String redisKey = redisSessionKey(sessionKey);
+            boolean removed = redisUtil.del(redisKey);
+            log.info("세션 제거: sessionId={}, sessionKey={}, redisKey={}, redisRemoved={}",
+                    sessionId, sessionKey, redisKey, removed);
         } else {
-            // 해당 세션 키를 찾을 수 없는 경우
-            log.warn("제거할 세션을 찾을 수 없습니다: " + sessionId);
+            log.warn("제거할 세션을 찾을 수 없습니다: sessionId={}", sessionId);
         }
-
         return session;
     }
 
-    /**
-     * 특정 세션에 직접 메시지를 보냅니다.
-     * 
-     * @param sessionId 메시지를 보낼 세션 ID
-     * @param message   보낼 메시지
-     */
+    /** 특정 세션키로 개인 메시지 전송 */
     public void sendToSession(String sessionKey, ServerEvent event) {
         String sessionId = sessionKeyToId.get(sessionKey);
-        WebSocketSession session = sessions.get(sessionId);
-
+        WebSocketSession session = (sessionId == null) ? null : sessions.get(sessionId);
         sendToSession(session, event);
     }
 
+    /** 세션 객체로 직접 전송 */
     public void sendToSession(WebSocketSession session, ServerEvent event) {
-        if (session != null && session.isOpen()) {
-            try {
-                // 이제 RedisTemplate이 사용하는 ObjectMapper와 동일한 객체를 사용합니다.
-                String jsonMessage = objectMapper.writeValueAsString(event);
-                session.sendMessage(new TextMessage(jsonMessage));
-            } catch (Exception e) {
-                // ... (예외 처리)
-            }
+        if (session == null || !session.isOpen()) return;
+        try {
+            String json = objectMapper.writeValueAsString(event);
+            session.sendMessage(new TextMessage(json));
+        } catch (Exception e) {
+            log.warn("세션 전송 실패: sessionId={}, error={}", session.getId(), e.toString());
         }
-    }
-
-
-    private String getRandomSessionKey() {
-        return "session_" + UUID.randomUUID().toString().substring(0, 8);
-    }
-
-    private String getRedisSessionKey(String sessionKey) {
-        return SESSION_PREFIX + sessionKey;
     }
 
     @Override
@@ -136,7 +98,7 @@ public class RedisSessionManager implements SessionManager {
     }
 
     @Override
-    public String getSessionKey(String sessionId){
+    public String getSessionKey(String sessionId) {
         return sessionIdToKey.get(sessionId);
     }
 
@@ -150,17 +112,27 @@ public class RedisSessionManager implements SessionManager {
         return sessions.size();
     }
 
-    /**
-     * Redis에 저장된 특정 세션 키의 만료 시간을 연장합니다.
-     * @param sessionId 만료 시간을 연장할 웹소켓 세션 ID
-     */
+    /** Redis에 저장된 세션 TTL 연장 */
     @Override
     public void renewExpiration(String sessionId) {
         String sessionKey = sessionIdToKey.get(sessionId);
-        if (sessionKey != null) {
-            String redisKey = getRedisSessionKey(sessionKey);
-            redisTemplate.expire(redisKey, Duration.ofSeconds(30));
+        if (sessionKey == null) return;
+
+        String redisKey = redisSessionKey(sessionKey);
+        boolean ok = redisUtil.expire(redisKey, SESSION_TTL);
+        if (!ok) {
+            log.debug("세션 TTL 연장 실패 또는 키 없음: redisKey={}", redisKey);
         }
     }
 
+    /* ====================== 내부 유틸 ====================== */
+
+    private String newRandomSessionKey() {
+        return "session_" + UUID.randomUUID().toString().substring(0, 8);
+    }
+
+    /** ws:session:{sessionKey} — 해시태그로 슬롯 고정 */
+    private String redisSessionKey(String sessionKey) {
+        return redisUtil.key(NS, sessionKey);
+    }
 }

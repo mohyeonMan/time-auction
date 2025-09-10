@@ -32,8 +32,7 @@ public class RoomEventHandler implements PublishEventHandler {
     public Set<ClientEventType> supports() {
         return Set.of(
             ClientEventType.CHAT,
-            // ClientEventType.ROUND_IN, 
-            // ClientEventType.ROUND_OUT,
+            ClientEventType.GAME_START,
             ClientEventType.READY,
             ClientEventType.NOT_READY
         );
@@ -46,8 +45,8 @@ public class RoomEventHandler implements PublishEventHandler {
         
         switch (type) {
             case CHAT -> handleChatEvent(session, event);
-            // case ROUND_IN -> handleRoundInEvent(session, event);
-            // case ROUND_OUT -> handleRoundOutEvent(session, event);
+            case GAME_START -> handleGameStartEvent(session, event);
+            case GAME_END -> handleGameEndEvent(session, event);
             case READY -> handleReadyEvent(session, event);
             case NOT_READY -> handleNotReadyEvent(session, event);
 
@@ -79,34 +78,18 @@ public class RoomEventHandler implements PublishEventHandler {
         messagePublisher.publish(dest, serverChatEvent);
     };
 
-    // private void handleRoundInEvent(WebSocketSession session, ClientEvent event){
-    //     final RoundInEvent roundInEvent = (RoundInEvent) event;
-    //     final String gameId = roundInEvent.getGameId();
-    //     final String roundId = roundInEvent.getRoundId();
-    //     final LocalDateTime sentAt = roundInEvent.getSentAt();
-        
-    //     sessionManager.sendToSession(session, 
-    //         new ServerEvent.RoundInConfirmEvent(gameId, roundId, true, sentAt)
-    //     );
-
-    // };
-
-    // private void handleRoundOutEvent(WebSocketSession session, ClientEvent event){
-    //     RoundOutEvent roundOutEvent = (RoundOutEvent) event;
-    //     final String gameId = roundOutEvent.getGameId();
-    //     final String roundId = roundOutEvent.getRoundId();
-    //     final LocalDateTime sentAt = roundOutEvent.getSentAt();
-        
-    //     sessionManager.sendToSession(session, 
-    //         new ServerEvent.RoundInConfirmEvent(gameId, roundId, true, sentAt)
-    //     );
-    // };
 
     private void handleReadyEvent(WebSocketSession session, ClientEvent event){
         ReadyEvent readyEvent = (ReadyEvent) event;
+        
     };
 
     private void handleNotReadyEvent(WebSocketSession session, ClientEvent event){
         NotReadyEvent notReadyEvent = (NotReadyEvent) event;
     };
+
+    private void handleGameStartEvent(WebSocketSession session, ClientEvent event){
+    }
+    private void handleGameEndEvent(WebSocketSession session, ClientEvent event){
+    }
 }
