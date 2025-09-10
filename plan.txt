@@ -1,0 +1,96 @@
+# Time Auction 프로젝트 구현 계획서
+
+## 1. 최종 목표
+- `rule.txt`에 명시된 규칙을 완벽하게 준수하는 실시간 시간 경매 게임을 완성한다.
+- 각 도메인(`User`, `Room`, `Game`, `Record`)이 명확한 책임을 갖고 유기적으로 상호작용하는 안정적인 백엔드 시스템을 구축한다.
+
+## 2. 리팩토링 및 개념 재정의
+- **`bid` 패키지**: 현재 게임 규칙과 이름이 맞지 않아 혼란을 유발하므로, **`record`**로 패키지명을 변경한다.
+  - `BidService` -> `RecordService`
+  - `BidRecord` -> `RoundRecord` (라운드별 시간 소모 기록)
+  - `BidBank` -> `TimeWallet` (플레이어의 시간 지갑)
+  - `BidController` -> `RecordController`
+
+---
+
+## 3. 도메인별 설계 및 구현 계획
+
+### 3.1. `user` 도메인
+- **책임**: 사용자 인증 및 세션 정보 관리.
+- **주요 모델**: `User.java`
+- **주요 서비스**: `UserService.java`
+  - WebSocket `sessionKey`를 기반으로 사용자를 식별하거나 생성한다.
+- **구현**: 현재 구조를 유지하며, 다른 서비스에서 사용자 정보를 조회하는 용도로 사용된다.
+
+### 3.2. `room` 도메인
+- **책임**: 게임 시작 전 대기실. 플레이어의 입장, 퇴장, 준비 상태 관리.
+- **주요 모델**:
+  - `Room.java`: 방 정보.
+  - `RoomEntry.java`: 방에 참여한 사용자 정보. 여기에 상태 필드를 추가한다.
+    - `boolean isReady`: 게임 시작 준비 상태.
+    - `boolean isParticipating`: 현재 라운드 참여 여부.
+- **주요 서비스**: `RoomServiceImpl.java`
+  - `joinRoom`, `leaveRoom`
+  - `setReady(sessionKey, isReady)`: 준비 상태를 토글한다.
+  - `setParticipation(sessionKey, isParticipating)`: 라운드 참여 여부를 설정한다.
+- **컨트롤러**: `RoomController.java`
+  - WebSocket을 통해 위 서비스들을 호출하는 엔드포인트 제공.
+
+### 3.3. `record` (舊 `bid`) 도메인
+- **책임**: 플레이어의 시간 관리. (시간 소모 기록, 남은 시간 계산)
+- **주요 모델**:
+  - `TimeWallet.java`: 플레이어의 시간 지갑.
+    - `String userId`, `String gameId`, `long timeLeft` (남은 시간), `int roundWins` (라운드 승수)
+  - `RoundRecord.java`: 라운드별 시간 소모 기록.
+    - `String userId`, `String roundId`, `LocalDateTime startTime`, `LocalDateTime endTime`, `long duration`
+- **주요 서비스**: `RecordServiceImpl.java` (신규 생성)
+  - `createTimeWallets(gameId, userIds)`: 게임 시작 시 모든 플레이어의 시간 지갑을 생성하고 초기 시간을 할당한다.
+  - `startRecord(userId, roundId)`: `RoundRecord`를 생성하고 시작 시간을 기록한다.
+  - `endRecord(userId, roundId)`: 종료 시간을 기록하고 소모 시간(`duration`)을 계산한다. `TimeWallet`의 `timeLeft`를 차감한다.
+  - `getRoundResult(roundId)`: 해당 라운드의 모든 `RoundRecord`를 반환하여 승자 판정에 사용되도록 한다.
+- **컨트롤러**: `RecordController.java`
+  - `TimeStartEvent`, `TimeEndEvent`를 받아 `RecordService`의 `start/endRecord`를 호출한다.
+
+### 3.4. `game` 도메인
+- **책임**: 게임 전체의 흐름을 지휘하는 **오케스트레이터**.
+- **주요 모델**: `Game.java`, `Round.java`, `Phase.java` (Enum: `WAITING`, `PARTICIPATION_SELECTION`, `AUCTION`, `SETTLEMENT`)
+- **주요 서비스**: `GameServiceImpl.java` (구현 필요)
+  - `startGame(roomId)`:
+    1. `RoomService`에서 준비된 플레이어 목록을 가져온다.
+    2. `RecordService.createTimeWallets`를 호출하여 플레이어들의 시간 지갑을 생성한다.
+    3. `Game` 객체를 생성하고 저장한다.
+    4. `startRound()`를 호출하여 첫 라운드를 시작한다.
+  - `startRound()`:
+    1. `Round` 객체를 생성한다.
+    2. 3초간의 `PARTICIPATION_SELECTION` 페이즈를 시작하고, `RoomService.setParticipation`을 통해 참여자를 확정한다.
+    3. 60초간의 `AUCTION` 페이즈를 시작한다. (서버 스케줄러 활용)
+  - `endRound()`:
+    1. `RecordService.getRoundResult`를 호출하여 이번 라운드 결과를 가져온다.
+    2. 가장 많은 시간을 소모한 플레이어를 승자로 판정하고, `TimeWallet.roundWins`를 1 증가시킨다.
+    3. 라운드 결과를 모든 플레이어에게 브로드캐스트한다.
+    4. 마지막 라운드이면 `endGame()`을 호출, 아니면 `startRound()`를 다시 호출한다.
+  - `endGame()`:
+    1. 최종 승자를 판정한다. (라운드 승수 > 남은 시간 순)
+    2. 최종 결과를 브로드캐스트한다.
+
+---
+
+## 4. 통합 워크플로우 (A-Z)
+1.  **접속 및 방 참여**: `User` 세션 생성 -> `RoomController` -> `RoomService.joinRoom`
+2.  **게임 준비**: `RoomController.setReady` -> 모든 플레이어가 `isReady=true`가 됨.
+3.  **게임 시작**: 방장 또는 시스템이 `GameController.startGame` 호출 -> `GameService.startGame` 실행.
+4.  **시간 지갑 생성**: `GameService`가 `RecordService.createTimeWallets`를 호출.
+5.  **라운드 시작**: `GameService.startRound` 실행. 참여 여부 선택 후 60초 경매 시작.
+6.  **시간 소모**: 플레이어가 `RecordController`로 `TimeStart/End` 이벤트 전송 -> `RecordService`가 시간 기록 및 계산.
+7.  **라운드 종료**: 60초 타이머 만료 -> `GameService.endRound` 실행 -> `RecordService`에서 결과 취합 후 승자 판정 및 점수 업데이트.
+8.  **반복**: 5라운드가 될 때까지 5~7번 과정 반복.
+9.  **게임 종료**: `GameService.endGame` 실행. 최종 승자 판정 및 결과 발표.
+
+---
+
+## 5. 제안: 구현 순서
+1.  **1단계 (리팩토링)**: `bid` 패키지 관련 이름들을 `record` 등으로 변경.
+2.  **2단계 (핵심 로직 구현)**: `RecordServiceImpl`을 먼저 구현하여 시간 기록 및 계산의 핵심 로직을 완성.
+3.  **3단계 (모델 수정)**: `RoomEntry`, `TimeWallet`에 필요한 필드(`isReady`, `roundWins` 등) 추가.
+4.  **4단계 (오케스트레이션)**: `GameServiceImpl`을 구현하여 2, 3단계에서 만든 서비스와 모델을 조립하며 전체 게임 흐름을 완성.
+5.  **5단계 (컨트롤러 연동)**: 각 컨트롤러가 WebSocket 이벤트를 받아 해당 서비스를 호출하도록 연결.

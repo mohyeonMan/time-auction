@@ -1,0 +1,48 @@
+# 서비스 계층 심층 검증 및 수정 계획
+
+## 1. 목표
+- 서비스 계층 코드의 논리적 오류, 동시성 문제, 누락된 엣지 케이스를 식별하고 수정하여 코드 안정성을 확보한다.
+
+## 2. 중점 검증 대상
+- `GameServiceImpl`: 게임 흐름 제어의 정확성, 타이머 관리, 상태 변경의 동시성 문제.
+- `RecordServiceImpl`: 여러 요청이 동시에 들어올 때 시간 기록 및 차감의 데이터 정합성 문제 (Race Condition).
+- `RoomServiceImpl`: 동시 입장/퇴장 시 발생할 수 있는 상태 불일치 문제.
+
+---
+
+## 3. 검증 및 조치 계획
+
+### 3.1. `RecordServiceImpl` 검증
+
+- **`endRecord` 메소드**: **[매우 치명적 결함]**
+  - **문제**: 여러 유저가 동시에 `endRecord`를 호출하면, `TimeWallet`의 남은 시간을 읽고, 계산하고, 쓰는 과정이 원자적(atomic)이 아니어서 Race Condition이 발생한다. 유저 A와 B가 동시에 요청하면, 나중에 저장한 유저의 데이터가 이전에 저장한 유저의 데이터를 덮어쓰게 되어 시간 차감이 누락된다.
+  - **조치**: `RedisTemplate`의 `opsForHash().increment()` 또는 Lua 스크립트를 사용한 원자적 연산으로 로직을 변경해야 한다. Spring Data Repository의 기본 `save`로는 해결할 수 없다. 이 부분을 수정하기 위해 `RecordService`에 `RedisTemplate`을 직접 사용하도록 로직을 보강한다.
+
+### 3.2. `GameServiceImpl` 검증
+
+- **`endRound` 메소드**: **[치명적 결함]**
+  - **문제**: 라운드 승자의 `TimeWallet`을 가져와 `roundWins`를 1 증가시키지만, 변경된 `TimeWallet`을 다시 저장(save)하는 코드가 없다. 따라서 라운드 승리 기록이 증발한다.
+  - **조치**: `RecordService`에 `addWinToUser(userId, gameId)`와 같은 메소드를 추가하고, 내부적으로 원자적인 연산(`HINCRBY`)으로 `roundWins`를 증가시키도록 구현한다. `GameService`는 이 새로운 서비스 메소드를 호출하도록 변경한다.
+
+- **스케줄러 (`scheduler`)**: **[확장성 문제]**
+  - **문제**: `Executors.newSingleThreadScheduledExecutor()`를 사용하고 있다. 이는 모든 게임의 모든 타이머가 단 하나의 스레드에서 순차적으로 실행됨을 의미한다. 게임이 많아지면 심각한 병목 현상을 유발한다.
+  - **조치**: Spring에서 제공하는 `ThreadPoolTaskScheduler`를 Bean으로 등록하여 사용하거나, Spring의 `@Async`, `@Scheduled` 기능을 활용하는 방식으로 변경하여 스레드 풀에서 동작하도록 개선한다.
+
+- **`endGame` 메소드**: **[로직 미비]**
+  - **문제**: 최종 승자 판정 로직이 `max(roundWins).thenComparing(timeLeft)` 규칙을 완벽하게 구현하고 있으나, 여러 유저의 `TimeWallet`을 가져오는 방식이 비효율적이다.
+  - **조치**: `TimeWalletRepository`에 `findAllByGameId(gameId)`와 같은 메소드를 추가하여 한 번의 호출로 모든 유저의 정보를 가져오도록 개선한다.
+
+### 3.3. `RoomServiceImpl` 검증
+
+- **`joinRoom` 메소드**: **[잠재적 결함]**
+  - **문제**: `findBy...`로 확인하고 `save`하는 로직은 원자적이지 않다. 극단적인 경우, 같은 유저가 동시에 입장 요청을 보내면 중복된 `RoomEntry`가 생성될 수 있다.
+  - **조치**: 현재는 치명도가 낮으므로 일단 현상만 기록하고, 추후 Redis의 `SETNX` (SET if Not eXists) 명령어를 활용하거나 분산 락(Distributed Lock)을 적용하여 원자성을 보장하는 방식으로 개선할 수 있다.
+
+---
+
+## 4. 실행 순서
+1.  **[긴급]** `RecordServiceImpl.endRecord`의 Race Condition 문제를 해결한다. (`RedisTemplate` 직접 사용)
+2.  **[긴급]** `GameServiceImpl.endRound`의 승점 미반영 문제를 해결한다. (`RecordService`에 신규 메소드 추가)
+3.  **[개선]** `GameServiceImpl`의 스케줄러를 스레드 풀 기반으로 변경한다.
+4.  **[개선]** `endGame` 로직의 데이터 조회 방식을 효율적으로 개선한다.
+5.  나머지 잠재적 결함 및 로직 미비 사항들을 순차적으로 보완한다.

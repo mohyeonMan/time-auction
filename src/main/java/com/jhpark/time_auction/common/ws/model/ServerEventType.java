@@ -14,5 +14,14 @@ public enum ServerEventType {
     TIME_END_CONFIRM,   // 시간 집계 종료 확인
     CHAT,               // 채팅
     NOTICE_MESSAGE,     // 공지 메시지
-    PHASE_CHANGED       // 페이즈 변경알림
+    PHASE_CHANGED,      // 페이즈 변경알림
+
+    // Broadcast event types
+    USER_JOINED_BROADCAST,
+    USER_LEFT_BROADCAST,
+    READY_STATUS_BROADCAST,
+    GAME_START_BROADCAST,
+    ROUND_START_BROADCAST,
+    ROUND_END_BROADCAST,
+    GAME_END_BROADCAST
 }

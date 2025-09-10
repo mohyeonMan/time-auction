@@ -1,6 +1,5 @@
 package com.jhpark.time_auction.common.redis.handler.publish;
 
-import java.util.List;
 import java.util.Set;
 
 import org.springframework.stereotype.Service;

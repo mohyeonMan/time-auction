@@ -1,5 +1,10 @@
 package com.jhpark.time_auction.common.redis.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.jhpark.time_auction.common.redis.handler.broadcast.RedisMessageSubscriber;
+import com.jhpark.time_auction.common.ws.config.WebSocketConfig.NodeId;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -7,16 +12,14 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.PatternTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
+import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.jhpark.time_auction.common.redis.handler.broadcast.RedisMessageSubscriber;
-import com.jhpark.time_auction.common.ws.config.WebSocketConfig.NodeId;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 @Configuration
+@EnableRedisRepositories(basePackages = "com.jhpark.time_auction")
 public class RedisConfig {
 
 
@@ -71,4 +74,12 @@ public class RedisConfig {
         return new MessageListenerAdapter(subscriber, "onMessage");
     }
 
+    @Bean
+    public TaskScheduler taskScheduler() {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(10); // Adjust pool size as needed
+        scheduler.setThreadNamePrefix("game-scheduler-");
+        scheduler.initialize();
+        return scheduler;
+    }
 }

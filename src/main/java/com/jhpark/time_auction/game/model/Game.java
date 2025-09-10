@@ -1,11 +1,18 @@
 package com.jhpark.time_auction.game.model;
 
-public class Game {
-    
-    String roomId;
-    String gameId;
-    int maxTime;
-    int maxRounds;
-    Phase phase;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.redis.core.RedisHash;
 
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@RedisHash("games")
+public class Game {
+    @Id
+    private String id;
+    private String roomId;
+    private int currentRound = 0;
 }

@@ -34,7 +34,14 @@ import lombok.Setter;
     @JsonSubTypes.Type(value = ServerEvent.TimeEndConfirmEvent.class, name = "TIME_END_CONFIRM"),
     @JsonSubTypes.Type(value = ServerEvent.ChatEvent.class, name = "CHAT"),
     @JsonSubTypes.Type(value = ServerEvent.NoticeMessageEvent.class, name = "NOTICE_MESSAGE"),
-    @JsonSubTypes.Type(value = ServerEvent.PhaseChangedEvent.class, name = "PHASE_CHANGED")
+    @JsonSubTypes.Type(value = ServerEvent.PhaseChangedEvent.class, name = "PHASE_CHANGED"),
+    @JsonSubTypes.Type(value = ServerEvent.UserJoinedBroadcastEvent.class, name = "USER_JOINED_BROADCAST"),
+    @JsonSubTypes.Type(value = ServerEvent.UserLeftBroadcastEvent.class, name = "USER_LEFT_BROADCAST"),
+    @JsonSubTypes.Type(value = ServerEvent.ReadyStatusBroadcastEvent.class, name = "READY_STATUS_BROADCAST"),
+    @JsonSubTypes.Type(value = ServerEvent.GameStartBroadcastEvent.class, name = "GAME_START_BROADCAST"),
+    @JsonSubTypes.Type(value = ServerEvent.RoundStartBroadcastEvent.class, name = "ROUND_START_BROADCAST"),
+    @JsonSubTypes.Type(value = ServerEvent.RoundEndBroadcastEvent.class, name = "ROUND_END_BROADCAST"),
+    @JsonSubTypes.Type(value = ServerEvent.GameEndBroadcastEvent.class, name = "GAME_END_BROADCAST")
 })
 public abstract class ServerEvent {
     private ServerEventType type;
@@ -213,6 +220,70 @@ public abstract class ServerEvent {
             super(ServerEventType.PHASE_CHANGED, sentAt);
             this.roomId = roomId;
             this.newPhase = newPhase;
+        }
+    }
+
+    /* Broadcast Events */
+    @Getter @Setter @NoArgsConstructor
+    public static class UserJoinedBroadcastEvent extends ServerEvent {
+        private com.jhpark.time_auction.room.model.RoomEntry userEntry;
+        public UserJoinedBroadcastEvent(com.jhpark.time_auction.room.model.RoomEntry userEntry, LocalDateTime sentAt) { 
+            super(ServerEventType.USER_JOINED_BROADCAST, sentAt); 
+            this.userEntry = userEntry; 
+        }
+    }
+
+    @Getter @Setter @NoArgsConstructor
+    public static class UserLeftBroadcastEvent extends ServerEvent {
+        private com.jhpark.time_auction.room.model.RoomEntry userEntry;
+        public UserLeftBroadcastEvent(com.jhpark.time_auction.room.model.RoomEntry userEntry, LocalDateTime sentAt) { 
+            super(ServerEventType.USER_LEFT_BROADCAST, sentAt); 
+            this.userEntry = userEntry; 
+        }
+    }
+
+    @Getter @Setter @NoArgsConstructor
+    public static class ReadyStatusBroadcastEvent extends ServerEvent {
+        private com.jhpark.time_auction.room.model.RoomEntry userEntry;
+        public ReadyStatusBroadcastEvent(com.jhpark.time_auction.room.model.RoomEntry userEntry, LocalDateTime sentAt) { 
+            super(ServerEventType.READY_STATUS_BROADCAST, sentAt); 
+            this.userEntry = userEntry; 
+        }
+    }
+
+    @Getter @Setter @NoArgsConstructor
+    public static class GameStartBroadcastEvent extends ServerEvent {
+        private com.jhpark.time_auction.game.model.Game game;
+        public GameStartBroadcastEvent(com.jhpark.time_auction.game.model.Game game, LocalDateTime sentAt) { 
+            super(ServerEventType.GAME_START_BROADCAST, sentAt); 
+            this.game = game; 
+        }
+    }
+
+    @Getter @Setter @NoArgsConstructor
+    public static class RoundStartBroadcastEvent extends ServerEvent {
+        private com.jhpark.time_auction.game.model.Round round;
+        public RoundStartBroadcastEvent(com.jhpark.time_auction.game.model.Round round, LocalDateTime sentAt) { 
+            super(ServerEventType.ROUND_START_BROADCAST, sentAt); 
+            this.round = round; 
+        }
+    }
+
+    @Getter @Setter @NoArgsConstructor
+    public static class RoundEndBroadcastEvent extends ServerEvent {
+        private java.util.List<com.jhpark.time_auction.record.model.RoundRecord> roundRecords;
+        public RoundEndBroadcastEvent(java.util.List<com.jhpark.time_auction.record.model.RoundRecord> roundRecords, LocalDateTime sentAt) { 
+            super(ServerEventType.ROUND_END_BROADCAST, sentAt); 
+            this.roundRecords = roundRecords; 
+        }
+    }
+
+    @Getter @Setter @NoArgsConstructor
+    public static class GameEndBroadcastEvent extends ServerEvent {
+        private com.jhpark.time_auction.record.model.TimeWallet winnerWallet;
+        public GameEndBroadcastEvent(com.jhpark.time_auction.record.model.TimeWallet winnerWallet, LocalDateTime sentAt) { 
+            super(ServerEventType.GAME_END_BROADCAST, sentAt); 
+            this.winnerWallet = winnerWallet; 
         }
     }
 }

@@ -1,26 +1,26 @@
 package com.jhpark.time_auction.room.service;
 
-import java.util.List;
-
 import com.jhpark.time_auction.room.model.Room;
 import com.jhpark.time_auction.room.model.RoomEntry;
 
+import java.util.List;
+
 public interface RoomService {
 
-    Room createRoom(String roomName, String sessionKey);
+    Room createRoom(String roomName, String userId);
 
-    Room deleteRoom(String roomId);
+    void deleteRoom(String roomId);
 
     List<RoomEntry> getEntriesByRoomId(String roomId);
 
-    boolean isAllReadyToPlay(String roomId);
+    List<RoomEntry> getReadyUsers(String roomId);
 
-    RoomEntry joinRoom(String roomId, String sessionKey);
+    RoomEntry joinRoom(String roomId, String userId);
 
-    RoomEntry leftRoom(String roomId, String sessionKey);
+    RoomEntry leaveRoom(String roomId, String userId);
 
-    boolean ready(String roomEntryId);
+    RoomEntry setReady(String roomId, String userId, boolean isReady);
 
-    boolean unready(String roomEntryId);
+    void setParticipation(String roomId, String userId, boolean isParticipating);
 
 }

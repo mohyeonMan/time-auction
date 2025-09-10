@@ -2,12 +2,9 @@ package com.jhpark.time_auction.common.redis.handler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jhpark.time_auction.common.redis.router.PublishMessageRouter;
 import com.jhpark.time_auction.common.ws.handler.SessionManager;
-import com.jhpark.time_auction.common.ws.model.AbstractMessage;
 import com.jhpark.time_auction.common.ws.model.in.ClientEvent;
 
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.Map;
 
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -49,20 +46,10 @@ public class RedisWebSocketHandler extends TextWebSocketHandler {
         log.info("WebSocket connection closed. Session ID: " + session.getId() + ", Reason: " + status.getReason() + " -");
     }
 
-    // @Override
-    // protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-    //     Map<String, String> payload = objectMapper.readValue(message.getPayload(), Map.class);
-    //     clientMessageRouter.route(session, payload);
-    // }
-
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage textMessage) throws Exception {
         ClientEvent event = objectMapper.readValue(textMessage.getPayload(), ClientEvent.class);
         publishMessageRouter.route(session, event);
     }
 
-    // @Override
-    // protected void handlePongMessage(WebSocketSession session, PongMessage message) throws Exception {
-        
-    // }
 }

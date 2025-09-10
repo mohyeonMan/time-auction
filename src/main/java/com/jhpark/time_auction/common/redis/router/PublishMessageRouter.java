@@ -32,12 +32,6 @@ public class PublishMessageRouter {
         }
     }
 
-    /**
-     * 클라이언트 메시지를 받아 메시지 유형에 따라 적절한 핸들러로 라우팅합니다.
-     *
-     * @param session 현재 웹소켓 세션
-     * @param message 클라이언트로부터 수신한 BaseMessage 객체
-     */
     public void route(WebSocketSession session, ClientEvent event) {
         ClientEventType type = event.getType();
         PublishEventHandler handler = handlerMap.get(type);
