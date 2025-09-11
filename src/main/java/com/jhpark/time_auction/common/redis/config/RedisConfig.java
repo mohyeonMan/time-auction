@@ -3,25 +3,34 @@ package com.jhpark.time_auction.common.redis.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.jhpark.time_auction.common.redis.handler.broadcast.RedisMessageSubscriber;
-import com.jhpark.time_auction.common.ws.config.WebSocketConfig.NodeId;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.listener.PatternTopic;
-import org.springframework.data.redis.listener.RedisMessageListenerContainer;
-import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
+import org.springframework.data.redis.core.RedisKeyValueAdapter.EnableKeyspaceEvents;
 import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
-import org.springframework.scheduling.TaskScheduler;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 @Configuration
-@EnableRedisRepositories(basePackages = "com.jhpark.time_auction")
+@EnableRedisRepositories(
+    basePackages = "com.jhpark.time_auction",
+    enableKeyspaceEvents = EnableKeyspaceEvents.ON_DEMAND
+    
+)
 public class RedisConfig {
 
+    @Bean
+    public RedisConnectionFactory redisConnectionFactory() {
+        // host/port는 application.yml의 spring.data.redis.* 를 따릅니다.
+        return new LettuceConnectionFactory();
+    }
+
+    // @Bean
+    // public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory cf) {
+    //     return new StringRedisTemplate(cf);
+    // }
 
     @Bean
     public ObjectMapper objectMapper() {
@@ -54,32 +63,32 @@ public class RedisConfig {
         return redisTemplate;
     }
 
-    @Bean
-    public RedisMessageListenerContainer redisMessageListenerContainer(
-            RedisConnectionFactory connectionFactory,
-            MessageListenerAdapter listenerAdapter) {
+    // @Bean
+    // public RedisMessageListenerContainer redisMessageListenerContainer(
+    //         RedisConnectionFactory connectionFactory,
+    //         MessageListenerAdapter listenerAdapter) {
         
-        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
-        container.setConnectionFactory(connectionFactory);
+    //     RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+    //     container.setConnectionFactory(connectionFactory);
         
-        container.addMessageListener(listenerAdapter, new PatternTopic("ws:room:*"));
-        container.addMessageListener(listenerAdapter, new PatternTopic("ws:node:"+ NodeId.ID+":session:*"));
+    //     container.addMessageListener(listenerAdapter, new PatternTopic("ws:room:*"));
+    //     container.addMessageListener(listenerAdapter, new PatternTopic("ws:node:"+ NodeId.ID+":session:*"));
         
-        return container;
-    }
+    //     return container;
+    // }
 
-    @Bean
-    public MessageListenerAdapter listenerAdapter(RedisMessageSubscriber subscriber) {
-        // 메시지 리스너를 MessageListenerAdapter로 변환
-        return new MessageListenerAdapter(subscriber, "onMessage");
-    }
+    // @Bean
+    // public MessageListenerAdapter listenerAdapter(RedisMessageSubscriber subscriber) {
+    //     // 메시지 리스너를 MessageListenerAdapter로 변환
+    //     return new MessageListenerAdapter(subscriber, "onMessage");
+    // }
 
-    @Bean
-    public TaskScheduler taskScheduler() {
-        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-        scheduler.setPoolSize(10); // Adjust pool size as needed
-        scheduler.setThreadNamePrefix("game-scheduler-");
-        scheduler.initialize();
-        return scheduler;
-    }
+    // @Bean
+    // public TaskScheduler taskScheduler() {
+    //     ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+    //     scheduler.setPoolSize(10); // Adjust pool size as needed
+    //     scheduler.setThreadNamePrefix("game-scheduler-");
+    //     scheduler.initialize();
+    //     return scheduler;
+    // }
 }

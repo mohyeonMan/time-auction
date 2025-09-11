@@ -9,7 +9,13 @@ public interface RoomService {
 
     Room createRoom(String roomName, String userId);
 
+    Room getRoomByRoomId(String roomId);
+
+    List<Room> getRooms();
+
     void deleteRoom(String roomId);
+
+    List<RoomEntry> getEntries();
 
     List<RoomEntry> getEntriesByRoomId(String roomId);
 

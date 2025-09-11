@@ -26,8 +26,8 @@ import lombok.extern.slf4j.Slf4j;
 public class RedisSessionManager implements SessionManager {
 
     private static final Duration SESSION_TTL = Duration.ofSeconds(30);
-    private static final String NS = "ws:session"; // namespace
-
+    private static final String NS = "ws:session";
+    
     private final ConcurrentMap<String, WebSocketSession> sessions = new ConcurrentHashMap<>(); // <sessionId, session>
     private final ConcurrentMap<String, String> sessionKeyToId = new ConcurrentHashMap<>();     // <sessionKey, sessionId>
     private final ConcurrentMap<String, String> sessionIdToKey = new ConcurrentHashMap<>();     // <sessionId, sessionKey>
@@ -41,44 +41,44 @@ public class RedisSessionManager implements SessionManager {
         final String sessionKey = newRandomSessionKey();
         final String nodeId = NodeId.ID;
 
-        // 1) Redis 저장 (TTL 포함)
-        SessionInfo sessionInfo = new SessionInfo(sessionKey, nodeId);
-        String redisKey = redisSessionKey(sessionKey); // ws:session:{<sessionKey>}
-        redisUtil.set(redisKey, sessionInfo, SESSION_TTL);
+        // // 1) Redis 저장 (TTL 포함)
+        // SessionInfo sessionInfo = new SessionInfo(sessionKey, nodeId);
+        // String redisKey = redisSessionKey(sessionKey); // ws:session:{<sessionKey>}
+        // redisUtil.set(redisKey, sessionInfo, SESSION_TTL);
 
-        // 2) 로컬 캐시
-        sessions.put(sessionId, session);
-        sessionKeyToId.put(sessionKey, sessionId);
-        sessionIdToKey.put(sessionId, sessionKey);
+        // // 2) 로컬 캐시
+        // sessions.put(sessionId, session);
+        // sessionKeyToId.put(sessionKey, sessionId);
+        // sessionIdToKey.put(sessionId, sessionKey);
 
-        log.debug("세션 등록: sessionId={}, sessionKey={}, redisKey={}", sessionId, sessionKey, redisKey);
+        // log.debug("세션 등록: sessionId={}, sessionKey={}, redisKey={}", sessionId, sessionKey, redisKey);
         return session;
     }
 
     /** 세션 제거 */
     public WebSocketSession removeSession(WebSocketSession session) {
-        final String sessionId = session.getId();
-        final String sessionKey = sessionIdToKey.remove(sessionId);
+        // final String sessionId = session.getId();
+        // final String sessionKey = sessionIdToKey.remove(sessionId);
 
-        if (sessionKey != null) {
-            sessions.remove(sessionId);
-            sessionKeyToId.remove(sessionKey);
+        // if (sessionKey != null) {
+        //     sessions.remove(sessionId);
+        //     sessionKeyToId.remove(sessionKey);
 
-            String redisKey = redisSessionKey(sessionKey);
-            boolean removed = redisUtil.del(redisKey);
-            log.info("세션 제거: sessionId={}, sessionKey={}, redisKey={}, redisRemoved={}",
-                    sessionId, sessionKey, redisKey, removed);
-        } else {
-            log.warn("제거할 세션을 찾을 수 없습니다: sessionId={}", sessionId);
-        }
+        //     String redisKey = redisSessionKey(sessionKey);
+        //     boolean removed = redisUtil.del(redisKey);
+        //     log.info("세션 제거: sessionId={}, sessionKey={}, redisKey={}, redisRemoved={}",
+        //             sessionId, sessionKey, redisKey, removed);
+        // } else {
+        //     log.warn("제거할 세션을 찾을 수 없습니다: sessionId={}", sessionId);
+        // }
         return session;
     }
 
     /** 특정 세션키로 개인 메시지 전송 */
     public void sendToSession(String sessionKey, ServerEvent event) {
-        String sessionId = sessionKeyToId.get(sessionKey);
-        WebSocketSession session = (sessionId == null) ? null : sessions.get(sessionId);
-        sendToSession(session, event);
+        // String sessionId = sessionKeyToId.get(sessionKey);
+        // WebSocketSession session = (sessionId == null) ? null : sessions.get(sessionId);
+        // sendToSession(session, event);
     }
 
     /** 세션 객체로 직접 전송 */

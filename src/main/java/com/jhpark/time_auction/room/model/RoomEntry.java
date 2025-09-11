@@ -1,8 +1,12 @@
 package com.jhpark.time_auction.room.model;
 
 import lombok.*;
+
+import org.apache.catalina.filters.ExpiresFilter.DurationUnit;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.redis.core.RedisHash;
+import org.springframework.data.redis.core.TimeToLive;
+import org.springframework.data.redis.core.index.Indexed;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -16,21 +20,26 @@ import java.util.UUID;
 public class RoomEntry {
     @Id
     private String roomEntryId;
+    @Indexed
     private String roomId;
     private String sessionId;
     private long joinedAt;
 
     private boolean isReady = false;
     private boolean isParticipating = false;
+
+    @TimeToLive
+    private long ttl;
     
-    public static RoomEntry create(String roomId, String sessionId) {
+    public static RoomEntry create(String roomId, String sessionId, long ttl) {
         return new RoomEntry(
             UUID.randomUUID().toString(),
             roomId,
             sessionId,
             Instant.now().toEpochMilli(),
             false,
-            false
+            false,
+            ttl
         );
     }
 }

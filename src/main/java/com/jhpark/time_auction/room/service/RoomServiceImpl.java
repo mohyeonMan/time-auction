@@ -1,5 +1,6 @@
 package com.jhpark.time_auction.room.service;
 
+import com.jhpark.time_auction.common.exception.CustomMessageException;
 import com.jhpark.time_auction.room.model.Room;
 import com.jhpark.time_auction.room.model.RoomEntry;
 import com.jhpark.time_auction.room.repository.RoomEntryRepository;
@@ -27,6 +28,18 @@ public class RoomServiceImpl implements RoomService {
     }
 
     @Override
+    public Room getRoomByRoomId(String roomId) {
+        return roomRepository.findById(roomId).orElseThrow(() -> new CustomMessageException("Room not found : " + roomId));
+    }
+
+    @Override
+    public List<Room> getRooms() {
+        return roomRepository.findAll();
+
+    }
+
+
+    @Override
     public void deleteRoom(String roomId) {
         roomEntryRepository.deleteAll(roomEntryRepository.findAllByRoomId(roomId));
         roomRepository.deleteById(roomId);
@@ -35,8 +48,21 @@ public class RoomServiceImpl implements RoomService {
 
     @Override
     public List<RoomEntry> getEntriesByRoomId(String roomId) {
-        return roomEntryRepository.findAllByRoomId(roomId);
+        List<RoomEntry> entries = roomEntryRepository.findAllByRoomId(roomId);
+        log.info("Room entries : {}", entries);
+
+        return entries;
     }
+
+    @Override
+    public List<RoomEntry> getEntries() {
+        List<RoomEntry> entries = roomEntryRepository.findAll();
+        log.info("Room entries : {}", entries);
+
+        return entries;
+    }
+
+
 
     @Override
     public List<RoomEntry> getReadyUsers(String roomId) {
@@ -47,10 +73,14 @@ public class RoomServiceImpl implements RoomService {
 
     @Override
     public RoomEntry joinRoom(String roomId, String userId) {
+        Room room = roomRepository.findById(roomId).orElse(null);
+        System.out.println(room);
+
         roomEntryRepository.findByRoomIdAndSessionId(roomId, userId).ifPresent(entry -> {
             throw new IllegalStateException("User already in room: " + userId);
         });
         RoomEntry entry = RoomEntry.create(roomId, userId);
+        System.out.println(entry);
         return roomEntryRepository.save(entry);
     }
 

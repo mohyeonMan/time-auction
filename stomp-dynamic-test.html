@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>STOMP Dynamic Test</title>
+    <meta charset="UTF-8">
+    <!-- SockJS and STOMP.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        #log { border: 1px solid #ccc; padding: 10px; margin-top: 10px; height: 300px; overflow-y: scroll; background-color: #f9f9f9; }
+        .controls, .subscription { margin-bottom: 15px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        input { width: calc(100% - 12px); padding: 5px; margin-bottom: 10px; }
+        .key-value-row {
+            display: flex;
+            align-items: center; /* Vertically align items */
+            margin-bottom: 8px; /* More spacing between rows */
+        }
+        .key-value-row input {
+            flex: 1; /* Take available space */
+            margin-right: 8px; /* Spacing between key and value inputs */
+            padding: 8px; /* More padding for inputs */
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .key-value-row .remove-btn {
+            width: 30px;
+            height: 30px; /* Make button square */
+            font-size: 18px;
+            line-height: 1;
+            background-color: #dc3545; /* Red for remove */
+            color: white;
+            border-radius: 4px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .add-btn {
+            width: 40px; /* Larger plus button */
+            height: 40px;
+            font-size: 24px;
+            background-color: #28a745; /* Green for add */
+            color: white;
+            border-radius: 50%; /* Make it round */
+            margin-top: 10px; /* Space from last row */
+            display: block; /* Center it */
+            margin-left: auto;
+            margin-right: auto;
+        }
+        textarea { height: 80px; } /* Keep textarea style */
+        button { padding: 8px 15px; margin-right: 10px; border: none; border-radius: 3px; cursor: pointer; }
+        #connectBtn { background-color: #28a745; color: white; }
+        #disconnectBtn { background-color: #dc3545; color: white; }
+        #subscribeBtn, #sendBtn { background-color: #007bff; color: white; }
+        button:disabled { background-color: #ccc; }
+        p > span { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>STOMP Dynamic Test Page</h1>
+    <p>Connection Status: <span id="status">Disconnected</span></p>
+    <button id="connectBtn" onclick="connect()">Connect</button>
+    <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+
+    <div class="subscription">
+        <h3>Subscription</h3>
+        <input type="text" id="sub-destination" placeholder="e.g., /topic/some-room or /user/queue/messages">
+        <button id="subscribeBtn" onclick="subscribeToTopic()" disabled>Subscribe</button>
+        <p>Subscribed to: <span id="subscribed-topics"></span></p>
+    </div>
+
+    <div class="controls">
+        <h3>Send Message (JSON Key-Value)</h3>
+        <input type="text" id="destination" placeholder="Destination, e.g., /app/chat/send">
+        <div id="keyValuePairs">
+            <div class="key-value-row">
+                <input type="text" class="key-input" placeholder="Key">
+                <input type="text" class="value-input" placeholder="Value">
+                <button onclick="removeKeyValuePair(this)" class="remove-btn">-</button>
+            </div>
+        </div>
+        <button onclick="addKeyValuePair()" class="add-btn">+</button>
+        <button id="sendBtn" onclick="sendMessage()" disabled>Send</button>
+    </div>
+
+    <h3>Received Messages Log</h3>
+    <div id="log"></div>
+
+    <script>
+        let stompClient = null;
+        const log = document.getElementById('log');
+        const status = document.getElementById('status');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const subscribeBtn = document.getElementById('subscribeBtn');
+        const sendBtn = document.getElementById('sendBtn');
+        const subscribedTopicsEl = document.getElementById('subscribed-topics');
+        let subscriptions = {};
+
+        function setConnected(connected) {
+            connectBtn.disabled = connected;
+            disconnectBtn.disabled = !connected;
+            subscribeBtn.disabled = !connected;
+            sendBtn.disabled = !connected;
+            status.textContent = connected ? 'Connected' : 'Disconnected';
+            status.style.color = connected ? 'green' : 'red';
+            if (!connected) {
+                subscribedTopicsEl.innerHTML = '';
+                subscriptions = {};
+            }
+        }
+
+        function connect() {
+            const socket = new SockJS('http://localhost:8080/ws'); // Your endpoint from WebSocketConfig
+            stompClient = Stomp.over(socket);
+            stompClient.connect({}, function (frame) {
+                setConnected(true);
+                logMessage('Connected: ' + frame);
+                // Default subscriptions for user-specific messages
+                subscribeTo('/user/queue/errors');
+                subscribeTo('/user/queue/messages');
+            }, function(error) {
+                logMessage('STOMP connection error: ' + error);
+                setConnected(false);
+            });
+        }
+
+        function disconnect() {
+            if (stompClient !== null) {
+                stompClient.disconnect();
+            }
+            setConnected(false);
+            logMessage("Disconnected");
+        }
+
+        function subscribeToTopic() {
+            const topic = document.getElementById('sub-destination').value;
+            if (topic && topic.trim() !== '') {
+                subscribeTo(topic);
+            }
+        }
+
+        function subscribeTo(topic) {
+            if (subscriptions[topic]) {
+                logMessage(`Already subscribed to ${topic}`);
+                return;
+            }
+            logMessage(`Subscribing to: ${topic}`);
+            const subscription = stompClient.subscribe(topic, function (message) {
+                logMessage(`Received from ${topic}: ${message.body}`);
+            });
+            subscriptions[topic] = subscription;
+            updateSubscribedTopics();
+        }
+        
+        function updateSubscribedTopics() {
+            subscribedTopicsEl.textContent = Object.keys(subscriptions).join(', ');
+        }
+
+        function addKeyValuePair() {
+            const keyValuePairsDiv = document.getElementById('keyValuePairs');
+            const newRow = document.createElement('div');
+            newRow.className = 'key-value-row';
+            newRow.innerHTML = `
+                <input type="text" class="key-input" placeholder="Key">
+                <input type="text" class="value-input" placeholder="Value">
+                <button onclick="removeKeyValuePair(this)">-</button>
+            `;
+            keyValuePairsDiv.appendChild(newRow);
+        }
+
+        function removeKeyValuePair(button) {
+            const row = button.parentNode;
+            row.parentNode.removeChild(row);
+        }
+
+        function sendMessage() {
+            const destination = document.getElementById('destination').value;
+            const keyValueRows = document.querySelectorAll('.key-value-row');
+            const payloadObject = {};
+
+            keyValueRows.forEach(row => {
+                const keyInput = row.querySelector('.key-input');
+                const valueInput = row.querySelector('.value-input');
+                const key = keyInput.value.trim();
+                const value = valueInput.value.trim();
+
+                if (key !== '') {
+                    // Try to parse value as JSON if it looks like one, otherwise keep as string
+                    try {
+                        payloadObject[key] = JSON.parse(value);
+                    } catch (e) {
+                        payloadObject[key] = value;
+                    }
+                }
+            });
+
+            const payload = JSON.stringify(payloadObject);
+
+            if (destination) {
+                try {
+                    stompClient.send(destination, {}, payload);
+                    logMessage(`Sent to ${destination}: ${payload}`);
+                } catch (e) {
+                    logMessage(`Error sending message: ${e}`);
+                }
+            } else {
+                alert('Destination cannot be empty!');
+            }
+        }
+
+        function logMessage(message) {
+            const p = document.createElement('p');
+            p.style.wordWrap = 'break-word';
+            p.style.margin = '0';
+            p.style.padding = '5px 0';
+            p.style.borderBottom = '1px solid #eee';
+            p.appendChild(document.createTextNode(message));
+            log.appendChild(p);
+            log.scrollTop = log.scrollHeight;
+        }
+    </script>
+</body>
+</html>

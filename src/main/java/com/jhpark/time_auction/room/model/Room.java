@@ -24,7 +24,7 @@ public class Room {
 
     public static Room create(String roomName, String creatorId) {
         return new Room(
-            UUID.randomUUID().toString(),
+            "room_"+UUID.randomUUID().toString().substring(0, 8),
             roomName,
             creatorId,
             Instant.now().toEpochMilli()
