@@ -2,8 +2,8 @@ package com.jhpark.time_auction.common.ws.handler;
 
 import java.util.Set;
 
-import com.jhpark.time_auction.common.ws.model.ServerEventType;
-import com.jhpark.time_auction.common.ws.model.out.ServerEvent;
+import com.jhpark.time_auction.common.ws.event.ServerEvent;
+import com.jhpark.time_auction.common.ws.event.ServerEventType;
 
 public interface BroadcastEventHandler {
     

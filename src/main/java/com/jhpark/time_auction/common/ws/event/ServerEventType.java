@@ -1,4 +1,4 @@
-package com.jhpark.time_auction.common.ws.model;
+package com.jhpark.time_auction.common.ws.event;
 
 public enum ServerEventType {
     PONG,               // 핑

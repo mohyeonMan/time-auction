@@ -2,7 +2,7 @@ package com.jhpark.time_auction.common.ws.handler;
 
 import org.springframework.web.socket.WebSocketSession;
 
-import com.jhpark.time_auction.common.ws.model.out.ServerEvent;
+import com.jhpark.time_auction.common.ws.event.ServerEvent;
 
 import java.util.Collection;
 

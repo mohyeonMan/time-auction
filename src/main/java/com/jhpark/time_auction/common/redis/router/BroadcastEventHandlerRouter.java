@@ -2,9 +2,9 @@ package com.jhpark.time_auction.common.redis.router;
 
 import org.springframework.stereotype.Component;
 
+import com.jhpark.time_auction.common.ws.event.ServerEvent;
+import com.jhpark.time_auction.common.ws.event.ServerEventType;
 import com.jhpark.time_auction.common.ws.handler.BroadcastEventHandler;
-import com.jhpark.time_auction.common.ws.model.ServerEventType;
-import com.jhpark.time_auction.common.ws.model.out.ServerEvent;
 
 import lombok.extern.slf4j.Slf4j;
 

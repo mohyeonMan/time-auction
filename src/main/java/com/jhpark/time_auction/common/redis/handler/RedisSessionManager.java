@@ -14,8 +14,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jhpark.time_auction.common.redis.model.SessionInfo;
 import com.jhpark.time_auction.common.redis.util.RedisTemplateUtil;
 import com.jhpark.time_auction.common.ws.config.WebSocketConfig.NodeId;
+import com.jhpark.time_auction.common.ws.event.ServerEvent;
 import com.jhpark.time_auction.common.ws.handler.SessionManager;
-import com.jhpark.time_auction.common.ws.model.out.ServerEvent;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

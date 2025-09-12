@@ -1,6 +1,6 @@
 package com.jhpark.time_auction.common.ws.handler.publish;
 
-import com.jhpark.time_auction.common.ws.model.out.ServerEvent;
+import com.jhpark.time_auction.common.ws.event.ServerEvent;
 
 public interface MessagePublisher<T extends ServerEvent> {
 

@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jhpark.time_auction.common.redis.router.BroadcastEventHandlerRouter;
-import com.jhpark.time_auction.common.ws.model.out.ServerEvent;
+import com.jhpark.time_auction.common.ws.event.ServerEvent;
 
 import lombok.extern.slf4j.Slf4j;
 

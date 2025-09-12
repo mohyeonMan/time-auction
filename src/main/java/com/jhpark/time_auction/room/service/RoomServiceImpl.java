@@ -1,8 +1,10 @@
 package com.jhpark.time_auction.room.service;
 
 import com.jhpark.time_auction.common.exception.CustomMessageException;
+import com.jhpark.time_auction.common.ws.event.ServerEvent;
+import com.jhpark.time_auction.common.ws.event.ServerEventType;
 import com.jhpark.time_auction.common.ws.handler.publish.MessagePublisher;
-import com.jhpark.time_auction.common.ws.model.out.ServerEvent;
+import com.jhpark.time_auction.room.event.JoinRoomEvent;
 import com.jhpark.time_auction.room.model.Room;
 import com.jhpark.time_auction.room.model.RoomEntry;
 import com.jhpark.time_auction.room.repository.RoomEntryRepository;
@@ -89,7 +91,7 @@ public class RoomServiceImpl implements RoomService {
         });
         
         RoomEntry entry = roomEntryRepository.save(RoomEntry.create(roomId, userId, ROOM_ENTRY_TTL));
-        publisher.publish(publisher, new ServerEvent.JoinConfirmEvent(entry, LocalDateTime.now()));
+        publisher.publish(publisher, new JoinRoomEvent(ServerEventType.JOIN_CONFIRM, null, roomId, userId)
         return entry;
     }
 
