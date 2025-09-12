@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>STOMP Dynamic Test</title>
+  <meta charset="UTF-8">
+  <!-- SockJS + @stomp/stompjs -->
+  <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.1.1/bundles/stomp.umd.min.js"></script>
+  <script src="https://unpkg.com/sockjs-client@1/dist/sockjs.min.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    #log { border: 1px solid #ccc; padding: 10px; margin-top: 10px; height: 300px; overflow-y: scroll; background-color: #f9f9f9; }
+    .controls, .subscription { margin-bottom: 15px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+    input { width: calc(100% - 12px); padding: 5px; margin-bottom: 10px; }
+    .key-value-row { display: flex; align-items: center; margin-bottom: 8px; }
+    .key-value-row input { flex: 1; margin-right: 8px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .key-value-row .remove-btn { width: 30px; height: 30px; font-size: 18px; line-height: 1; background-color: #dc3545; color: white; border-radius: 4px; display: flex; justify-content: center; align-items: center; }
+    .add-btn { width: 40px; height: 40px; font-size: 24px; background-color: #28a745; color: white; border-radius: 50%; margin-top: 10px; display: block; margin-left: auto; margin-right: auto; }
+    textarea { height: 80px; }
+    button { padding: 8px 15px; margin-right: 10px; border: none; border-radius: 3px; cursor: pointer; }
+    #connectBtn { background-color: #28a745; color: white; }
+    #disconnectBtn { background-color: #dc3545; color: white; }
+    #subscribeBtn, #sendBtn { background-color: #007bff; color: white; }
+    button:disabled { background-color: #ccc; }
+    p>span { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>STOMP Dynamic Test Page</h1>
+  <p>Connection Status: <span id="status">Disconnected</span></p>
+  <button id="connectBtn" onclick="connect()">Connect</button>
+  <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+
+  <div class="subscription">
+    <h3>Subscription</h3>
+    <input type="text" id="sub-destination" placeholder="e.g., /topic/some-room or /user/queue/messages">
+    <button id="subscribeBtn" onclick="subscribeToTopic()" disabled>Subscribe</button>
+    <p>Subscribed to: <span id="subscribed-topics"></span></p>
+  </div>
+
+  <div class="controls">
+    <h3>Send Message (JSON Key-Value)</h3>
+    <input type="text" id="destination" placeholder="Destination, e.g., /app/chat/send">
+    <div id="keyValuePairs">
+      <div class="key-value-row">
+        <input type="text" class="key-input" placeholder="Key">
+        <input type="text" class="value-input" placeholder="Value">
+        <button onclick="removeKeyValuePair(this)" class="remove-btn">-</button>
+      </div>
+    </div>
+    <button onclick="addKeyValuePair()" class="add-btn">+</button>
+    <button id="sendBtn" onclick="sendMessage()" disabled>Send</button>
+  </div>
+
+  <h3>Received Messages Log</h3>
+  <div id="log"></div>
+
+  <script>
+    // ===== Settings =====
+    const HEARTBEAT_FOREGROUND_MS = 20000; // 클라→서버 하트비트(전경)
+    const HEARTBEAT_BACKGROUND_MS = 30000; // 클라→서버 하트비트(백그라운드 권장)
+    const RECONNECT_DELAY_MS = 1000;       // 끊기면 자동 재연결
+    const WS_ENDPOINT = 'http://localhost:8080/ws';
+
+    // ===== State =====
+    let client = null;
+    const log = document.getElementById('log');
+    const status = document.getElementById('status');
+    const connectBtn = document.getElementById('connectBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    const subscribeBtn = document.getElementById('subscribeBtn');
+    const sendBtn = document.getElementById('sendBtn');
+    const subscribedTopicsEl = document.getElementById('subscribed-topics');
+    let subscriptions = {}; // { destination: subscription }
+
+    function logMessage(message) {
+      const p = document.createElement('p');
+      p.style.wordWrap = 'break-word';
+      p.style.margin = '0';
+      p.style.padding = '5px 0';
+      p.style.borderBottom = '1px solid #eee';
+      p.appendChild(document.createTextNode(message));
+      log.appendChild(p);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function setConnected(connected) {
+      connectBtn.disabled = connected;
+      disconnectBtn.disabled = !connected;
+      subscribeBtn.disabled = !connected;
+      sendBtn.disabled = !connected;
+      status.textContent = connected ? 'Connected' : 'Disconnected';
+      status.style.color = connected ? 'green' : 'red';
+      if (!connected) {
+        subscribedTopicsEl.innerHTML = '';
+        subscriptions = {};
+      }
+    }
+
+    function connect() {
+      if (client && client.active) return;
+
+      client = new StompJs.Client({
+        // SockJS 팩토리
+        webSocketFactory: () => new SockJS(WS_ENDPOINT),
+
+        // STOMP 1.2까지 협상
+        // stompVersions: new StompJs.Versions(['1.2', '1.1', '1.0']),
+        // connectHeaders: {
+        //   // 필요 시 login/passcode 추가
+        //   // 'accept-version'는 stompVersions로 대체됨
+        // },
+
+        // 하트비트 & 재연결
+        heartbeatOutgoing: HEARTBEAT_FOREGROUND_MS, // 클라→서버
+        heartbeatIncoming: HEARTBEAT_FOREGROUND_MS, // 서버→클라
+        reconnectDelay: RECONNECT_DELAY_MS,
+
+        // 로그 (원치 않으면 주석)
+        // debug: (str) => logMessage('[DEBUG] ' + str),
+
+        // 콜백
+        onConnect: (frame) => {
+          setConnected(true);
+          logMessage('Connected: ' + JSON.stringify(frame.headers));
+          // 기본 구독
+          subscribeTo('/user/queue/errors');
+          subscribeTo('/user/queue/ack');
+        },
+        onStompError: (frame) => {
+          logMessage('STOMP error: ' + frame.headers['message'] + ' – ' + frame.body);
+        },
+        onWebSocketClose: (evt) => {
+          logMessage('WebSocket closed: ' + (evt && evt.code));
+          setConnected(false);
+        }
+      });
+
+      client.activate();
+    }
+
+    function disconnect() {
+      if (!client) return;
+      try {
+        // 열린 구독 해제
+        Object.values(subscriptions).forEach(sub => { try { sub.unsubscribe(); } catch(e){} });
+        subscriptions = {};
+      } catch (e) {}
+      client.deactivate().finally(() => {
+        setConnected(false);
+        logMessage("Disconnected");
+      });
+    }
+
+    function subscribeToTopic() {
+      const topic = document.getElementById('sub-destination').value;
+      if (topic && topic.trim() !== '') subscribeTo(topic);
+    }
+
+    function subscribeTo(destination) {
+      if (!client || !client.active) {
+        logMessage('Not connected.');
+        return;
+      }
+      if (subscriptions[destination]) {
+        logMessage(`Already subscribed to ${destination}`);
+        return;
+      }
+      logMessage(`Subscribing to: ${destination}`);
+      const sub = client.subscribe(destination, (message) => {
+        logMessage(`Received from ${destination}: ${message.body}`);
+      });
+      subscriptions[destination] = sub;
+      updateSubscribedTopics();
+    }
+
+    function updateSubscribedTopics() {
+      subscribedTopicsEl.textContent = Object.keys(subscriptions).join(', ');
+    }
+
+    function addKeyValuePair() {
+      const keyValuePairsDiv = document.getElementById('keyValuePairs');
+      const newRow = document.createElement('div');
+      newRow.className = 'key-value-row';
+      newRow.innerHTML = `
+        <input type="text" class="key-input" placeholder="Key">
+        <input type="text" class="value-input" placeholder="Value">
+        <button onclick="removeKeyValuePair(this)" class="remove-btn">-</button>
+      `;
+      keyValuePairsDiv.appendChild(newRow);
+    }
+
+    function removeKeyValuePair(button) {
+      const row = button.parentNode;
+      row.parentNode.removeChild(row);
+    }
+
+    function sendMessage() {
+      if (!client || !client.active) {
+        alert('Not connected!');
+        return;
+      }
+      const destination = document.getElementById('destination').value;
+      const keyValueRows = document.querySelectorAll('.key-value-row');
+      const payloadObject = {};
+      keyValueRows.forEach(row => {
+        const key = row.querySelector('.key-input').value.trim();
+        const valueRaw = row.querySelector('.value-input').value.trim();
+        if (key !== '') {
+          try { payloadObject[key] = JSON.parse(valueRaw); }
+          catch (_) { payloadObject[key] = valueRaw; }
+        }
+      });
+      if (!destination) {
+        alert('Destination cannot be empty!');
+        return;
+      }
+      const body = JSON.stringify(payloadObject);
+      try {
+        client.publish({ destination, body, headers: { 'content-type': 'application/json' } });
+        logMessage(`Sent to ${destination}: ${body}`);
+      } catch (e) {
+        logMessage(`Error sending message: ${e}`);
+      }
+    }
+
+    // (선택) 탭 가시성에 따라 하트비트 완화: 재연결 시 반영됨
+    document.addEventListener('visibilitychange', () => {
+      if (!client) return;
+      // 설정 값만 바꿔두면 다음 재연결에서 적용됨
+      client.heartbeatOutgoing = document.hidden ? HEARTBEAT_BACKGROUND_MS : HEARTBEAT_FOREGROUND_MS;
+    });
+  </script>
+</body>
+</html>

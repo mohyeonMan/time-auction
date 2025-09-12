@@ -4,13 +4,19 @@ import java.security.Principal;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServletServerHttpRequest;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.messaging.simp.stomp.StompCommand;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
+import org.springframework.messaging.support.ChannelInterceptor;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
@@ -25,6 +31,17 @@ import lombok.extern.slf4j.Slf4j;
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
+    @Value("${app.stomp.host}")
+    private String relayHost;
+    @Value("${app.stomp.port}")
+    private Integer relayPort;
+    @Value("${app.stomp.vhost}")
+    private String vhost;
+    @Value("${app.stomp.user}")
+    private String user;
+    @Value("${app.stomp.pass}")
+    private String pass;
+
     @Bean
     public DefaultHandshakeHandler httpSessionIdHandshakeHandler() {
         return new DefaultHandshakeHandler() {
@@ -37,11 +54,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 if (request instanceof ServletServerHttpRequest servlet) {
                     // true: 세션 없으면 생성(안 만들고 싶으면 false로)
                     HttpSession session = servlet.getServletRequest().getSession(true);
-                    String id =  session.getId(); // prefix는 선택
-                    return () -> id; // Principal#getName()
+                    String id = session.getId().substring(0, 8); // prefix는 선택
+                    return () -> "session_"+id; // Principal#getName()
                 }
                 // 혹시 Servlet 요청이 아닐 경우 대비
-                return () -> "sess:" + UUID.randomUUID().toString();
+                return () -> "session_" + UUID.randomUUID().toString().substring(0, 8);
             }
         };
     }
@@ -52,40 +69,48 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.addEndpoint("/ws")
                 .setAllowedOriginPatterns("*")
                 .setHandshakeHandler(httpSessionIdHandshakeHandler())
-                .withSockJS()
-                ;
-    }
-
-    @Bean
-    public ThreadPoolTaskScheduler stompBrokerTaskScheduler() {
-        var ts = new ThreadPoolTaskScheduler();
-        ts.setPoolSize(1);
-        ts.setThreadNamePrefix("stomp-hb-");
-        ts.initialize();
-        return ts;
+                .withSockJS();
     }
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        // 클라이언트 → 서버로 들어오는 목적지 prefix (Controller의 @MessageMapping 과 매칭)
         registry.setApplicationDestinationPrefixes("/app");
-
-        // 서버 → 클라이언트로 브로드캐스트되는 목적지 prefix
-        // 여기서는 심플브로커(메모리)를 켜두되, 노드 간 동기화는 Redis 브리지로 해결
-         registry.enableSimpleBroker("/topic", "/queue")
-            .setHeartbeatValue(new long[]{10000, 10000})
-            .setTaskScheduler(stompBrokerTaskScheduler());
-
-        // 유저 전용 큐 (SimpMessagingTemplate.convertAndSendToUser)
         registry.setUserDestinationPrefix("/user");
+
+        registry.enableStompBrokerRelay("/topic", "/queue")
+                .setRelayHost(relayHost)
+                .setRelayPort(relayPort)
+                .setVirtualHost(vhost)
+                .setClientLogin(user)
+                .setClientPasscode(pass)
+                .setSystemLogin(user)
+                .setSystemPasscode(pass)
+                .setSystemHeartbeatSendInterval(10_000)
+                .setSystemHeartbeatReceiveInterval(10_000)
+                .setUserDestinationBroadcast("/topic/unresolved-user-destination")
+                .setUserRegistryBroadcast("/topic/simp-user-registry");
     }
 
     // (선택) 인바운드/아웃바운드 채널 스레드 풀 튜닝
     @Override
-    public void configureClientInboundChannel(ChannelRegistration registration) { }
-    
+    public void configureClientInboundChannel(ChannelRegistration reg) {
+        reg.interceptors(new ChannelInterceptor() {
+            @Override
+            public Message<?> preSend(Message<?> message, MessageChannel channel) {
+                var acc = StompHeaderAccessor.wrap(message);
+                if (acc.getCommand() == StompCommand.CONNECT && acc.getUser() == null) {
+                    // 세션ID를 Principal로 강제(세션 단위 개인 전송 보장)
+                    acc.setUser(() -> acc.getSessionId());
+                    return MessageBuilder.createMessage(message.getPayload(), acc.getMessageHeaders());
+                }
+                return message;
+            }
+        });
+    }
+
     @Override
-    public void configureClientOutboundChannel(ChannelRegistration registration) { }
+    public void configureClientOutboundChannel(ChannelRegistration registration) {
+    }
 
     public static class NodeId {
         public static final String ID = "node_" + UUID.randomUUID().toString().substring(0, 8);

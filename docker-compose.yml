@@ -1,0 +1,58 @@
+# docker-compose.yml
+version: "3.9"
+
+networks:
+  backplane:
+    driver: bridge
+
+volumes:
+  rabbitmq-data:
+  redis-data:
+
+services:
+  rabbit:
+    image: rabbitmq:3.13-management
+    container_name: rabbit
+    ports:
+      - "5672:5672"     # AMQP
+      - "15672:15672"   # Management UI http://localhost:15672
+      - "61613:61613"   # STOMP (TCP)
+      - "15674:15674"   # Web-STOMP (WebSocket)
+    environment:
+      RABBITMQ_HOST: rabbit
+      RABBITMQ_STOMP_PORT: "61613"
+      RABBITMQ_VHOST: "/"
+      RABBITMQ_USER: app
+      RABBITMQ_PASS: app123!
+    command: >
+      bash -lc "
+        rabbitmq-plugins enable --offline rabbitmq_stomp rabbitmq_web_stomp &&
+        rabbitmq-server
+      "
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - backplane
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.2
+    container_name: redis
+    command: ["redis-server", "--appendonly", "yes", "--notify-keyspace-events", "Ex"] # 만료 이벤트 필요시 Ex
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - backplane
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped

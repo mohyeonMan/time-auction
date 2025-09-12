@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface RoomService {
 
-    Room createRoom(String roomName, String userId);
+    Room createRoom(String roomName, String sessionId);
 
     Room getRoomByRoomId(String roomId);
 
@@ -21,12 +21,12 @@ public interface RoomService {
 
     List<RoomEntry> getReadyUsers(String roomId);
 
-    RoomEntry joinRoom(String roomId, String userId);
+    RoomEntry joinRoom(String roomId, String sessionId);
 
-    RoomEntry leaveRoom(String roomId, String userId);
+    RoomEntry leaveRoom(String roomId, String sessionId);
 
-    RoomEntry setReady(String roomId, String userId, boolean isReady);
+    RoomEntry ready(String roomId, String sessionId);
 
-    void setParticipation(String roomId, String userId, boolean isParticipating);
+    RoomEntry unready(String roomId, String sessionId);
 
 }

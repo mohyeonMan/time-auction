@@ -1,44 +1,44 @@
-package com.jhpark.time_auction.common.redis.router;
+// package com.jhpark.time_auction.common.redis.router;
 
-import org.springframework.stereotype.Component;
+// import org.springframework.stereotype.Component;
 
-import com.jhpark.time_auction.common.ws.event.ServerEvent;
-import com.jhpark.time_auction.common.ws.event.ServerEventType;
-import com.jhpark.time_auction.common.ws.handler.BroadcastEventHandler;
+// import com.jhpark.time_auction.common.ws.handler.BroadcastEventHandler;
+// import com.jhpark.time_auction.common.ws.model.ServerEventType;
+// import com.jhpark.time_auction.common.ws.model.out.ServerEvent;
 
-import lombok.extern.slf4j.Slf4j;
+// import lombok.extern.slf4j.Slf4j;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+// import java.util.HashMap;
+// import java.util.List;
+// import java.util.Map;
+// import java.util.Set;
 
-@Slf4j
-@Component
-public class BroadcastEventHandlerRouter {
+// @Slf4j
+// @Component
+// public class BroadcastEventHandlerRouter {
     
-    private final Map<ServerEventType, BroadcastEventHandler> handlerMap;
+//     private final Map<ServerEventType, BroadcastEventHandler> handlerMap;
 
-    public BroadcastEventHandlerRouter(List<BroadcastEventHandler> handlers) {
-        this.handlerMap = new HashMap<>();
+//     public BroadcastEventHandlerRouter(List<BroadcastEventHandler> handlers) {
+//         this.handlerMap = new HashMap<>();
 
-        for (BroadcastEventHandler handler : handlers) {
-            Set<ServerEventType> supportedTypes = handler.supports();
+//         for (BroadcastEventHandler handler : handlers) {
+//             Set<ServerEventType> supportedTypes = handler.supports();
             
-            for (ServerEventType type : supportedTypes) {
-                handlerMap.put(type, handler);
-            }
-        }
-    }
+//             for (ServerEventType type : supportedTypes) {
+//                 handlerMap.put(type, handler);
+//             }
+//         }
+//     }
 
-    public void route(String channel, ServerEvent event) {
-        ServerEventType type = event.getType();
-        BroadcastEventHandler handler = handlerMap.get(type);
+//     public void route(String channel, ServerEvent event) {
+//         ServerEventType type = event.getType();
+//         BroadcastEventHandler handler = handlerMap.get(type);
 
-        if (handler != null) {
-            handler.handle(channel, event);
-        } else {
-            log.error("EVENT NOT SUPPORTED : {}", type);
-        }
-    }
-}
+//         if (handler != null) {
+//             handler.handle(channel, event);
+//         } else {
+//             log.error("EVENT NOT SUPPORTED : {}", type);
+//         }
+//     }
+// }

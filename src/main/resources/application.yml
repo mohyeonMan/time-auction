@@ -12,6 +12,21 @@ spring:
   devtools:
     livereload:
       enabled: true
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
 
 server:
   port: 8080
+
+app:
+  stomp:
+    host: localhost
+    port: 61613
+    vhost: "/"
+    user: ${RABBITMQ_USER:app}
+    pass: ${RABBITMQ_PASS:app123!}
+
+  

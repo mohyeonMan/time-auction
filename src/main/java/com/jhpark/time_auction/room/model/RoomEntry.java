@@ -22,11 +22,11 @@ public class RoomEntry {
     private String roomEntryId;
     @Indexed
     private String roomId;
+    @Indexed
     private String sessionId;
     private long joinedAt;
 
     private boolean isReady = false;
-    private boolean isParticipating = false;
 
     @TimeToLive
     private long ttl;
@@ -37,7 +37,6 @@ public class RoomEntry {
             roomId,
             sessionId,
             Instant.now().toEpochMilli(),
-            false,
             false,
             ttl
         );

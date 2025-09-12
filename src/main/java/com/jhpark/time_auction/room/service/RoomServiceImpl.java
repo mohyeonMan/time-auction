@@ -2,9 +2,7 @@ package com.jhpark.time_auction.room.service;
 
 import com.jhpark.time_auction.common.exception.CustomMessageException;
 import com.jhpark.time_auction.common.ws.event.ServerEvent;
-import com.jhpark.time_auction.common.ws.event.ServerEventType;
 import com.jhpark.time_auction.common.ws.handler.publish.MessagePublisher;
-import com.jhpark.time_auction.room.event.JoinRoomEvent;
 import com.jhpark.time_auction.room.model.Room;
 import com.jhpark.time_auction.room.model.RoomEntry;
 import com.jhpark.time_auction.room.repository.RoomEntryRepository;
@@ -12,10 +10,8 @@ import com.jhpark.time_auction.room.repository.RoomRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.boot.autoconfigure.integration.IntegrationProperties.RSocket.Server;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -49,7 +45,6 @@ public class RoomServiceImpl implements RoomService {
         return roomRepository.findAll();
 
     }
-
 
     @Override
     public void deleteRoom(String roomId) {
@@ -91,7 +86,7 @@ public class RoomServiceImpl implements RoomService {
         });
         
         RoomEntry entry = roomEntryRepository.save(RoomEntry.create(roomId, userId, ROOM_ENTRY_TTL));
-        publisher.publish(publisher, new JoinRoomEvent(ServerEventType.JOIN_CONFIRM, null, roomId, userId)
+        // publisher.publish(publisher, new JoinRoomEvent(ServerEventType.JOIN_CONFIRM, null, roomId, userId)
         return entry;
     }
 
@@ -104,18 +99,19 @@ public class RoomServiceImpl implements RoomService {
     }
 
     @Override
-    public RoomEntry setReady(String roomId, String userId, boolean isReady) {
+    public RoomEntry ready(String roomId, String userId) {
         RoomEntry entry = roomEntryRepository.findByRoomIdAndSessionId(roomId, userId)
                 .orElseThrow(() -> new CustomMessageException("User not in room"));
-        entry.setReady(isReady);
+        entry.setReady(true);
         return roomEntryRepository.save(entry);
     }
 
     @Override
-    public void setParticipation(String roomId, String userId, boolean isParticipating) {
+    public RoomEntry unready(String roomId, String userId) {
         RoomEntry entry = roomEntryRepository.findByRoomIdAndSessionId(roomId, userId)
                 .orElseThrow(() -> new CustomMessageException("User not in room"));
-        entry.setParticipating(isParticipating);
-        roomEntryRepository.save(entry);
+        entry.setReady(false);
+        return roomEntryRepository.save(entry);
     }
+
 }

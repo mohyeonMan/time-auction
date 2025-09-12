@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>STOMP Dynamic Test</title>
     <meta charset="UTF-8">
@@ -7,55 +8,125 @@
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 20px; }
-        #log { border: 1px solid #ccc; padding: 10px; margin-top: 10px; height: 300px; overflow-y: scroll; background-color: #f9f9f9; }
-        .controls, .subscription { margin-bottom: 15px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
-        input { width: calc(100% - 12px); padding: 5px; margin-bottom: 10px; }
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+        }
+
+        #log {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 10px;
+            height: 300px;
+            overflow-y: scroll;
+            background-color: #f9f9f9;
+        }
+
+        .controls,
+        .subscription {
+            margin-bottom: 15px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        input {
+            width: calc(100% - 12px);
+            padding: 5px;
+            margin-bottom: 10px;
+        }
+
         .key-value-row {
             display: flex;
-            align-items: center; /* Vertically align items */
-            margin-bottom: 8px; /* More spacing between rows */
+            align-items: center;
+            /* Vertically align items */
+            margin-bottom: 8px;
+            /* More spacing between rows */
         }
+
         .key-value-row input {
-            flex: 1; /* Take available space */
-            margin-right: 8px; /* Spacing between key and value inputs */
-            padding: 8px; /* More padding for inputs */
+            flex: 1;
+            /* Take available space */
+            margin-right: 8px;
+            /* Spacing between key and value inputs */
+            padding: 8px;
+            /* More padding for inputs */
             border: 1px solid #ccc;
             border-radius: 4px;
         }
+
         .key-value-row .remove-btn {
             width: 30px;
-            height: 30px; /* Make button square */
+            height: 30px;
+            /* Make button square */
             font-size: 18px;
             line-height: 1;
-            background-color: #dc3545; /* Red for remove */
+            background-color: #dc3545;
+            /* Red for remove */
             color: white;
             border-radius: 4px;
             display: flex;
             justify-content: center;
             align-items: center;
         }
+
         .add-btn {
-            width: 40px; /* Larger plus button */
+            width: 40px;
+            /* Larger plus button */
             height: 40px;
             font-size: 24px;
-            background-color: #28a745; /* Green for add */
+            background-color: #28a745;
+            /* Green for add */
             color: white;
-            border-radius: 50%; /* Make it round */
-            margin-top: 10px; /* Space from last row */
-            display: block; /* Center it */
+            border-radius: 50%;
+            /* Make it round */
+            margin-top: 10px;
+            /* Space from last row */
+            display: block;
+            /* Center it */
             margin-left: auto;
             margin-right: auto;
         }
-        textarea { height: 80px; } /* Keep textarea style */
-        button { padding: 8px 15px; margin-right: 10px; border: none; border-radius: 3px; cursor: pointer; }
-        #connectBtn { background-color: #28a745; color: white; }
-        #disconnectBtn { background-color: #dc3545; color: white; }
-        #subscribeBtn, #sendBtn { background-color: #007bff; color: white; }
-        button:disabled { background-color: #ccc; }
-        p > span { font-weight: bold; }
+
+        textarea {
+            height: 80px;
+        }
+
+        /* Keep textarea style */
+        button {
+            padding: 8px 15px;
+            margin-right: 10px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        #connectBtn {
+            background-color: #28a745;
+            color: white;
+        }
+
+        #disconnectBtn {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        #subscribeBtn,
+        #sendBtn {
+            background-color: #007bff;
+            color: white;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+        }
+
+        p>span {
+            font-weight: bold;
+        }
     </style>
 </head>
+
 <body>
     <h1>STOMP Dynamic Test Page</h1>
     <p>Connection Status: <span id="status">Disconnected</span></p>
@@ -87,6 +158,10 @@
     <div id="log"></div>
 
     <script>
+        const HEARTBEAT_FOREGROUND_MS = 10000; // 포그라운드 기본 20s
+        const HEARTBEAT_BACKGROUND_MS = 30000; // 백그라운드에서 더 느슨하게
+        const RECONNECT_DELAY_MS = 1000;       // 끊기면 5s 후 재연결
+
         let stompClient = null;
         const log = document.getElementById('log');
         const status = document.getElementById('status');
@@ -111,15 +186,27 @@
         }
 
         function connect() {
-            const socket = new SockJS('http://localhost:8080/ws'); // Your endpoint from WebSocketConfig
+            const socket = new SockJS('http://localhost:8080/ws'); // 동일
             stompClient = Stomp.over(socket);
-            stompClient.connect({}, function (frame) {
+
+            // 디버그 로그(선택)
+            // stompClient.debug = (str) => logMessage('[DEBUG] ' + str);
+
+            // ★ 하트비트/재연결 설정 (connect 호출 전에!)
+            stompClient.heartbeat.outgoing = HEARTBEAT_FOREGROUND_MS; // 클라→서버
+            stompClient.heartbeat.incoming = HEARTBEAT_FOREGROUND_MS; // 서버→클라 확인 비활성(선택)
+            stompClient.reconnect_delay = RECONNECT_DELAY_MS;         // 자동 재연결
+
+            // STOMP 1.2로 협상(권장)
+            const headers = { 'accept-version': '1.2' };
+
+            stompClient.connect(headers, function (frame) {
                 setConnected(true);
                 logMessage('Connected: ' + frame);
-                // Default subscriptions for user-specific messages
+                // 기본 구독
                 subscribeTo('/user/queue/errors');
                 subscribeTo('/user/queue/messages');
-            }, function(error) {
+            }, function (error) {
                 logMessage('STOMP connection error: ' + error);
                 setConnected(false);
             });
@@ -152,7 +239,7 @@
             subscriptions[topic] = subscription;
             updateSubscribedTopics();
         }
-        
+
         function updateSubscribedTopics() {
             subscribedTopicsEl.textContent = Object.keys(subscriptions).join(', ');
         }
@@ -221,4 +308,5 @@
         }
     </script>
 </body>
+
 </html>
