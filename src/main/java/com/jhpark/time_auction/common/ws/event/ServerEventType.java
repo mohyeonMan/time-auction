@@ -2,6 +2,8 @@ package com.jhpark.time_auction.common.ws.event;
 
 public enum ServerEventType {
     PONG,               // 핑
+    CREATE_ROOM,
+    GET_ROOM,
     JOIN_CONFIRM,       // 방 참여 확인
     LEAVE_CONFIRM,      // 방 나감 확인
     READY_CONFIRM,      // 준비 확인
@@ -19,7 +21,7 @@ public enum ServerEventType {
     // Broadcast event types
     USER_JOINED_BROADCAST,
     USER_LEFT_BROADCAST,
-    READY_STATUS_BROADCAST,
+    READY_BROADCAST,
     GAME_START_BROADCAST,
     ROUND_START_BROADCAST,
     ROUND_END_BROADCAST,

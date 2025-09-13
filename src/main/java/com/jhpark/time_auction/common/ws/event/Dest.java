@@ -1,4 +1,4 @@
-package com.jhpark.time_auction.common.ws.event;
+package com.jhpark.time_auction.common.ws.model;
 
 public final class Dest {
   private Dest(){}

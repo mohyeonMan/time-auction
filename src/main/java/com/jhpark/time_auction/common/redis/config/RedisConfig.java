@@ -27,10 +27,6 @@ public class RedisConfig {
         return new LettuceConnectionFactory();
     }
 
-    // @Bean
-    // public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory cf) {
-    //     return new StringRedisTemplate(cf);
-    // }
 
     @Bean
     public ObjectMapper objectMapper() {
@@ -63,32 +59,4 @@ public class RedisConfig {
         return redisTemplate;
     }
 
-    // @Bean
-    // public RedisMessageListenerContainer redisMessageListenerContainer(
-    //         RedisConnectionFactory connectionFactory,
-    //         MessageListenerAdapter listenerAdapter) {
-        
-    //     RedisMessageListenerContainer container = new RedisMessageListenerContainer();
-    //     container.setConnectionFactory(connectionFactory);
-        
-    //     container.addMessageListener(listenerAdapter, new PatternTopic("ws:room:*"));
-    //     container.addMessageListener(listenerAdapter, new PatternTopic("ws:node:"+ NodeId.ID+":session:*"));
-        
-    //     return container;
-    // }
-
-    // @Bean
-    // public MessageListenerAdapter listenerAdapter(RedisMessageSubscriber subscriber) {
-    //     // 메시지 리스너를 MessageListenerAdapter로 변환
-    //     return new MessageListenerAdapter(subscriber, "onMessage");
-    // }
-
-    // @Bean
-    // public TaskScheduler taskScheduler() {
-    //     ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-    //     scheduler.setPoolSize(10); // Adjust pool size as needed
-    //     scheduler.setThreadNamePrefix("game-scheduler-");
-    //     scheduler.initialize();
-    //     return scheduler;
-    // }
 }

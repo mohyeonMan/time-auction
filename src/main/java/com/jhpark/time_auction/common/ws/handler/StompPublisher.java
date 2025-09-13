@@ -1,9 +1,9 @@
-package com.jhpark.time_auction.common.ws.handler.publish;
+package com.jhpark.time_auction.common.ws.handler;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
-import com.jhpark.time_auction.common.ws.event.ServerEvent;
+import com.jhpark.time_auction.common.ws.model.ServerEvent;
 
 import lombok.RequiredArgsConstructor;
 

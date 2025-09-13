@@ -1,8 +1,7 @@
 package com.jhpark.time_auction.room.service;
 
 import com.jhpark.time_auction.common.exception.CustomMessageException;
-import com.jhpark.time_auction.common.ws.event.ServerEvent;
-import com.jhpark.time_auction.common.ws.handler.publish.MessagePublisher;
+import com.jhpark.time_auction.common.ws.handler.MessagePublisher;
 import com.jhpark.time_auction.room.model.Room;
 import com.jhpark.time_auction.room.model.RoomEntry;
 import com.jhpark.time_auction.room.repository.RoomEntryRepository;
@@ -10,9 +9,11 @@ import com.jhpark.time_auction.room.repository.RoomRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -22,54 +23,51 @@ public class RoomServiceImpl implements RoomService {
 
     private final RoomRepository roomRepository;
     private final RoomEntryRepository roomEntryRepository;
-    private final MessagePublisher<ServerEvent> publisher;
+    private final SimpMessageSendingOperations publisher;
 
     private final static long ROOM_TTL = 600;
     private final static long ROOM_ENTRY_TTL = 600;
 
 
     @Override
-    public Room createRoom(String roomName, String userId) {
-        Room newRoom = Room.create(roomName, userId, ROOM_TTL);
+    public Room createRoom(
+        String sessionId,
+        String roomName
+    ) {
+        Room newRoom = Room.create(roomName, sessionId, ROOM_TTL);
         log.info("Room created: {}", newRoom);
         return roomRepository.save(newRoom);
+
     }
 
     @Override
     public Room getRoomByRoomId(String roomId) {
-        return roomRepository.findById(roomId).orElseThrow(() -> new CustomMessageException("Room not found : " + roomId));
+        return roomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomMessageException("Room not found : " + roomId));
     }
 
     @Override
     public List<Room> getRooms() {
-        return roomRepository.findAll();
-
+         return roomRepository.findAll();
     }
 
     @Override
-    public void deleteRoom(String roomId) {
-        roomEntryRepository.deleteAll(roomEntryRepository.findAllByRoomId(roomId));
+    public void  deleteRoom(String roomId) {
+        roomEntryRepository.deleteByRoomId(roomId);
         roomRepository.deleteById(roomId);
         log.info("Room deleted: {}", roomId);
+
     }
 
     @Override
     public List<RoomEntry> getEntriesByRoomId(String roomId) {
-        List<RoomEntry> entries = roomEntryRepository.findAllByRoomId(roomId);
-        log.info("Room entries : {}", entries);
-
-        return entries;
+        return roomEntryRepository.findAllByRoomId(roomId);
     }
 
     @Override
     public List<RoomEntry> getEntries() {
-        List<RoomEntry> entries = roomEntryRepository.findAll();
-        log.info("Room entries : {}", entries);
-
-        return entries;
+        return roomEntryRepository.findAll();
     }
-
-
 
     @Override
     public List<RoomEntry> getReadyUsers(String roomId) {
@@ -79,39 +77,51 @@ public class RoomServiceImpl implements RoomService {
     }
 
     @Override
-    public RoomEntry joinRoom(String roomId, String userId) {
+    public RoomEntry joinRoom(String cid, long sentAt, String roomId, String sessionId, String nickname) {
         roomRepository.findById(roomId).orElseThrow(() -> new CustomMessageException("Room not found: " + roomId));
-        roomEntryRepository.findByRoomIdAndSessionId(roomId, userId).ifPresent(entry -> {
-            throw new CustomMessageException("User already in room: " + userId);
+        roomEntryRepository.findByRoomIdAndSessionId(roomId, sessionId).ifPresent(entry -> {
+            throw new CustomMessageException("User already in room: " + nickname);
         });
-        
-        RoomEntry entry = roomEntryRepository.save(RoomEntry.create(roomId, userId, ROOM_ENTRY_TTL));
-        // publisher.publish(publisher, new JoinRoomEvent(ServerEventType.JOIN_CONFIRM, null, roomId, userId)
-        return entry;
+
+        return roomEntryRepository.save(RoomEntry.create(roomId, sessionId, nickname, ROOM_ENTRY_TTL));
+
     }
 
     @Override
-    public RoomEntry leaveRoom(String roomId, String userId) {
-        RoomEntry entry = roomEntryRepository.findByRoomIdAndSessionId(roomId, userId)
-                .orElseThrow(() -> new CustomMessageException("User not in room"));
+    public RoomEntry leaveRoom(String cid, long sentAt, String roomEntryId) {
+        RoomEntry entry = roomEntryRepository.findById(roomEntryId)
+                .orElseThrow(() -> new CustomMessageException("Room entry not found: " + roomEntryId));
         roomEntryRepository.delete(entry);
+
+        String roomId = entry.getRoomId();
+
+        log.info("User {} left room {}", entry.getNickname(), roomId);
+
         return entry;
+
     }
 
     @Override
-    public RoomEntry ready(String roomId, String userId) {
-        RoomEntry entry = roomEntryRepository.findByRoomIdAndSessionId(roomId, userId)
-                .orElseThrow(() -> new CustomMessageException("User not in room"));
+    public RoomEntry ready(String roomEntryId) {
+        RoomEntry entry = roomEntryRepository.findById(roomEntryId)
+                .orElseThrow(() -> new CustomMessageException("Room entry not found: " + roomEntryId));
+
         entry.setReady(true);
-        return roomEntryRepository.save(entry);
+        RoomEntry savedEntry = roomEntryRepository.save(entry);
+
+        log.info("User {} is ready", entry.getNickname());
+
+        return savedEntry;
     }
 
     @Override
-    public RoomEntry unready(String roomId, String userId) {
-        RoomEntry entry = roomEntryRepository.findByRoomIdAndSessionId(roomId, userId)
+    public RoomEntry unready(String roomEntryId) {
+        RoomEntry entry = roomEntryRepository.findById(roomEntryId)
                 .orElseThrow(() -> new CustomMessageException("User not in room"));
         entry.setReady(false);
-        return roomEntryRepository.save(entry);
+        RoomEntry savedEntry = roomEntryRepository.save(entry);
+
+        return savedEntry;
     }
 
 }

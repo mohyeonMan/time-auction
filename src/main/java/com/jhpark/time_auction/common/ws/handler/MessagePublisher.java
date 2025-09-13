@@ -1,4 +1,4 @@
-package com.jhpark.time_auction.common.ws.handler.publish;
+package com.jhpark.time_auction.common.ws.handler;
 
 public interface MessagePublisher<T> {
     void publish(String destination, T message);

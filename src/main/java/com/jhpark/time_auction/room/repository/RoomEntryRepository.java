@@ -10,4 +10,5 @@ public interface RoomEntryRepository extends CrudRepository<RoomEntry, String> {
     List<RoomEntry> findAll();
     List<RoomEntry> findAllByRoomId(String roomId);
     Optional<RoomEntry> findByRoomIdAndSessionId(String roomId, String sessionId);
+    List<RoomEntry> deleteByRoomId(String roomId);
 }

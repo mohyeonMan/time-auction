@@ -24,6 +24,7 @@ public class RoomEntry {
     private String roomId;
     @Indexed
     private String sessionId;
+    private String nickname;
     private long joinedAt;
 
     private boolean isReady = false;
@@ -31,11 +32,12 @@ public class RoomEntry {
     @TimeToLive
     private long ttl;
     
-    public static RoomEntry create(String roomId, String sessionId, long ttl) {
+    public static RoomEntry create(String roomId, String sessionId, String nickname, long ttl) {
         return new RoomEntry(
             UUID.randomUUID().toString(),
             roomId,
             sessionId,
+            nickname,
             Instant.now().toEpochMilli(),
             false,
             ttl
