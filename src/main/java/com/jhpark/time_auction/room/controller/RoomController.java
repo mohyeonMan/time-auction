@@ -11,13 +11,9 @@ import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.stereotype.Controller;
 
-import com.jhpark.time_auction.common.ws.model.Ack;
-import com.jhpark.time_auction.common.ws.model.Dest;
-import com.jhpark.time_auction.common.ws.model.Meta;
-import com.jhpark.time_auction.common.ws.model.ServerEvent;
-import com.jhpark.time_auction.room.model.Room;
-import com.jhpark.time_auction.room.model.RoomEntry;
-import com.jhpark.time_auction.room.service.RoomService;
+import com.jhpark.time_auction.common.ws.event.Ack;
+import com.jhpark.time_auction.common.ws.event.Dest;
+import com.jhpark.time_auction.room.handler.RoomEventHandler;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,114 +23,99 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class RoomController {
 
-    private final RoomService roomService;
+    private final RoomEventHandler roomEventHandler;
     
     @MessageMapping("/room/create")
     @SendToUser(Dest.USER_ACK)
-    public Ack<Object> createRoom(
+    public Ack<?> createRoom(
         Principal principal, 
         @Header(name="x-msg-id") String cid,
         @Header(name="x-sent-at") long sentAt,
         @Payload String roomName
     ) {
-
-        ServerEvent event = roomService.createRoom(
-            cid,
-            sentAt,
-            principal.getName(),
-            roomName
-        );
-
-        return Ack.ok(event.getMeta(), event.getPayload());
+        return roomEventHandler.handleCreateEvent(cid, sentAt, principal.getName(), roomName);
     }
 
-    @MessageMapping("/room/get")
-    @SendToUser(Dest.USER_ACK)
-    public Ack<ServerEvent> getRooms(
-        Principal principal,
-        @Header(name="x-msg-id") String cid,
-        @Header(name="x-sent-at") long sentAt
-    ) {
-        ServerEvent event = roomService.getRooms();
-        return Ack.ok(event.getMeta(), event.getPayload());
-    }
+    // @MessageMapping("/room/get")
+    // @SendToUser(Dest.USER_ACK)
+    // public Ack<?> getRooms(
+    //     Principal principal,
+    //     @Header(name="x-msg-id") String cid,
+    //     @Header(name="x-sent-at") long sentAt
+    // ) {
+    //     ServerEvent event = roomService.getRooms();
+    //     return Ack.ok(event.getMeta(), event.getPayload());
+    // }
 
-    @MessageMapping("/room/{roomId}/get")
-    @SendToUser(Dest.USER_ACK)
-    public Ack<Room> getRoomByRoomId(
-        Principal principal, 
-        @DestinationVariable("roomId") String roomId,
-        @Header(name="x-msg-id") String cid,
-        @Header(name="x-sent-at") long sentAt
-    ) {
-        ServerEvent event = roomService.getRoomByRoomId(roomId);
-        return Ack.ok(event.getMeta(), event.getPayload());
-    }
+    // @MessageMapping("/room/{roomId}/get")
+    // @SendToUser(Dest.USER_ACK)
+    // public Ack<Room> getRoomByRoomId(
+    //     Principal principal, 
+    //     @DestinationVariable("roomId") String roomId,
+    //     @Header(name="x-msg-id") String cid,
+    //     @Header(name="x-sent-at") long sentAt
+    // ) {
+    //     ServerEvent event = roomService.getRoomByRoomId(roomId);
+    //     return Ack.ok(event.getMeta(), event.getPayload());
+    // }
 
-    @MessageMapping("/room-entries/{roomId}/get")
-    @SendToUser(Dest.USER_ACK)
-    public Ack<List<RoomEntry>> getRoomEntriesByRoomId(
-        Principal principal, 
-        @DestinationVariable("roomId") String roomId,
-        @Header(name="x-msg-id") String cid,
-        @Header(name="x-sent-at") long sentAt
-    ) {
-        List<RoomEntry> entries = roomService.getEntriesByRoomId(roomId);
-        return Ack.ok(cid, entries);
-    }
+    // @MessageMapping("/room-entries/{roomId}/get")
+    // @SendToUser(Dest.USER_ACK)
+    // public Ack<List<RoomEntry>> getRoomEntriesByRoomId(
+    //     Principal principal, 
+    //     @DestinationVariable("roomId") String roomId,
+    //     @Header(name="x-msg-id") String cid,
+    //     @Header(name="x-sent-at") long sentAt
+    // ) {
+    //     List<RoomEntry> entries = roomService.getEntriesByRoomId(roomId);
+    //     return Ack.ok(cid, entries);
+    // }
 
-    @MessageMapping("/room-entries/get")
-    @SendToUser(Dest.USER_ACK)
-    public Ack<List<RoomEntry>> getRoomEntriesByRoomId(
-        Principal principal,
-        @Header(name="x-msg-id") String cid,
-        @Header(name="x-sent-at") long sentAt
-    ) {
-        List<RoomEntry> entries = roomService.getEntries();
-        return Ack.ok(cid, entries);
-    }
+    // @MessageMapping("/room-entries/get")
+    // @SendToUser(Dest.USER_ACK)
+    // public Ack<List<RoomEntry>> getRoomEntriesByRoomId(
+    //     Principal principal,
+    //     @Header(name="x-msg-id") String cid,
+    //     @Header(name="x-sent-at") long sentAt
+    // ) {
+    //     List<RoomEntry> entries = roomService.getEntries();
+    //     return Ack.ok(cid, entries);
+    // }
 
     @MessageMapping("/room/{roomId}/join")
     @SendTo(Dest.USER_ACK)
-    public Ack<Object> joinRoom(
+    public Ack<?> joinRoom(
         Principal principal,
         @DestinationVariable("roomId") String roomId,
         @Header(name="x-msg-id") String cid,
         @Header(name="x-sent-at") long sentAt,
         @Payload String nickname
     ){
-        ServerEvent joinRoomEvent = roomService.joinRoom(
-            cid,
-            sentAt,
-            roomId,
-            principal.getName(),
-            nickname
-        );
-        return Ack.ok(cid, joinRoomEvent.getSid(), joinRoomEvent.getPayload());
+        return roomEventHandler.handleJoinEvent(cid, sentAt, roomId, principal.getName(), nickname);
     }
 
-    @MessageMapping("/room/{roomId}/ready")
+    @MessageMapping("/room/{roomId}/room-entry/{roomEntryId}/ready")
     @SendTo(Dest.USER_ACK)
-    public Ack<RoomEntry> ready(
+    public Ack<?> ready(
         Principal principal,
         @DestinationVariable("roomId") String roomId,
+        @DestinationVariable("roomEntryId") String roomEntryId,
         @Header(name="x-msg-id") String cid,
         @Header(name="x-sent-at") long sentAt
     ){
-        RoomEntry roomEntry = roomService.ready(roomId, principal.getName());
-        return Ack.ok(cid, roomEntry);
+        return roomEventHandler.handleReadyEvent(cid, sentAt, roomId, roomEntryId);
     }
     
-    @MessageMapping("/room/{roomId}/unready")
+    @MessageMapping("/room/{roomId}/room-entry/{roomEntryId}/unready")
     @SendTo(Dest.USER_ACK)
-    public Ack<RoomEntry> unready(
+    public Ack<?> unready(
         Principal principal,
         @DestinationVariable("roomId") String roomId,
+        @DestinationVariable("roomEntryId") String roomEntryId,
         @Header(name="x-msg-id") String cid,
         @Header(name="x-sent-at") long sentAt
     ){
-        RoomEntry roomEntry = roomService.ready(roomId, principal.getName());
-        return Ack.ok(cid, roomEntry);
+        return roomEventHandler.handleUnreadyEvent(cid, sentAt, roomId, roomEntryId);
     }
 
 }

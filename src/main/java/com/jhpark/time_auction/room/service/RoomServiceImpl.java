@@ -77,7 +77,7 @@ public class RoomServiceImpl implements RoomService {
     }
 
     @Override
-    public RoomEntry joinRoom(String cid, long sentAt, String roomId, String sessionId, String nickname) {
+    public RoomEntry joinRoom(String roomId, String sessionId, String nickname) {
         roomRepository.findById(roomId).orElseThrow(() -> new CustomMessageException("Room not found: " + roomId));
         roomEntryRepository.findByRoomIdAndSessionId(roomId, sessionId).ifPresent(entry -> {
             throw new CustomMessageException("User already in room: " + nickname);
@@ -88,13 +88,10 @@ public class RoomServiceImpl implements RoomService {
     }
 
     @Override
-    public RoomEntry leaveRoom(String cid, long sentAt, String roomEntryId) {
-        RoomEntry entry = roomEntryRepository.findById(roomEntryId)
+    public RoomEntry leaveRoom(String roomId, String roomEntryId) {
+        RoomEntry entry = roomEntryRepository.findByIdAndRoomId(roomEntryId, roomId)
                 .orElseThrow(() -> new CustomMessageException("Room entry not found: " + roomEntryId));
         roomEntryRepository.delete(entry);
-
-        String roomId = entry.getRoomId();
-
         log.info("User {} left room {}", entry.getNickname(), roomId);
 
         return entry;
@@ -102,8 +99,8 @@ public class RoomServiceImpl implements RoomService {
     }
 
     @Override
-    public RoomEntry ready(String roomEntryId) {
-        RoomEntry entry = roomEntryRepository.findById(roomEntryId)
+    public RoomEntry ready(String roomId, String roomEntryId) {
+        RoomEntry entry = roomEntryRepository.findByIdAndRoomId(roomEntryId, roomId)
                 .orElseThrow(() -> new CustomMessageException("Room entry not found: " + roomEntryId));
 
         entry.setReady(true);
@@ -115,8 +112,8 @@ public class RoomServiceImpl implements RoomService {
     }
 
     @Override
-    public RoomEntry unready(String roomEntryId) {
-        RoomEntry entry = roomEntryRepository.findById(roomEntryId)
+    public RoomEntry unready(String roomId, String roomEntryId) {
+        RoomEntry entry = roomEntryRepository.findByIdAndRoomId(roomEntryId, roomId)
                 .orElseThrow(() -> new CustomMessageException("User not in room"));
         entry.setReady(false);
         RoomEntry savedEntry = roomEntryRepository.save(entry);

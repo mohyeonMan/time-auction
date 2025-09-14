@@ -19,7 +19,7 @@ import java.util.UUID;
 @RedisHash("room_entries")
 public class RoomEntry {
     @Id
-    private String roomEntryId;
+    private String id;
     @Indexed
     private String roomId;
     @Indexed

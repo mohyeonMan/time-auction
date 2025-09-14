@@ -21,12 +21,12 @@ public interface RoomService {
 
     List<RoomEntry> getReadyUsers(String roomId);
 
-    RoomEntry joinRoom(String cid, long sentAt, String roomId, String sessionId, String nickname);
+    RoomEntry joinRoom(String roomId, String sessionId, String nickname);
 
-    RoomEntry leaveRoom(String cid, long sentAt, String roomEntryId);
+    RoomEntry leaveRoom(String roomId, String roomEntryId);
 
-    RoomEntry ready(String roomEntryId);
+    RoomEntry ready(String roomId, String roomEntryId);
 
-    RoomEntry unready(String roomEntryId);
+    RoomEntry unready(String roomId, String roomEntryId);
 
 }
