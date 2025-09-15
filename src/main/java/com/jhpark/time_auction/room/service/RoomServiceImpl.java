@@ -121,4 +121,9 @@ public class RoomServiceImpl implements RoomService {
         return savedEntry;
     }
 
+    @Override
+    public RoomEntry getRoomEntryBySessionId(String sessionId) {
+        return roomEntryRepository.findBySessionId(sessionId)
+                .orElseThrow(() -> new CustomMessageException("RoomEntry not found for session: " + sessionId));
+    }
 }

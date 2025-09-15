@@ -1,96 +1,64 @@
-# Time Auction 프로젝트 구현 계획서
+### 미니 용어 사전
 
-## 1. 최종 목표
-- `rule.txt`에 명시된 규칙을 완벽하게 준수하는 실시간 시간 경매 게임을 완성한다.
-- 각 도메인(`User`, `Room`, `Game`, `Record`)이 명확한 책임을 갖고 유기적으로 상호작용하는 안정적인 백엔드 시스템을 구축한다.
+*   **도메인 (Domain)**: 관련된 업무 규칙과 데이터를 하나로 묶은 단위 (예: Room, Auction).
+*   **이벤트 (Event)**: 시스템 내에서 발생하는 의미 있는 사건. 특정 동작의 결과로 발생하며, 다른 부분에 영향을 줍니다.
+*   **퍼블리셔 (Publisher)**: 이벤트를 만들고, 메시지 브로커(RabbitMQ)를 통해 필요한 곳에 전달(발행)하는 역할.
 
-## 2. 리팩토링 및 개념 재정의
-- **`bid` 패키지**: 현재 게임 규칙과 이름이 맞지 않아 혼란을 유발하므로, **`record`**로 패키지명을 변경한다.
-  - `BidService` -> `RecordService`
-  - `BidRecord` -> `RoundRecord` (라운드별 시간 소모 기록)
-  - `BidBank` -> `TimeWallet` (플레이어의 시간 지갑)
-  - `BidController` -> `RecordController`
+### 전체 백로그 체크리스트
 
----
-
-## 3. 도메인별 설계 및 구현 계획
-
-### 3.1. `user` 도메인
-- **책임**: 사용자 인증 및 세션 정보 관리.
-- **주요 모델**: `User.java`
-- **주요 서비스**: `UserService.java`
-  - WebSocket `sessionKey`를 기반으로 사용자를 식별하거나 생성한다.
-- **구현**: 현재 구조를 유지하며, 다른 서비스에서 사용자 정보를 조회하는 용도로 사용된다.
-
-### 3.2. `room` 도메인
-- **책임**: 게임 시작 전 대기실. 플레이어의 입장, 퇴장, 준비 상태 관리.
-- **주요 모델**:
-  - `Room.java`: 방 정보.
-  - `RoomEntry.java`: 방에 참여한 사용자 정보. 여기에 상태 필드를 추가한다.
-    - `boolean isReady`: 게임 시작 준비 상태.
-    - `boolean isParticipating`: 현재 라운드 참여 여부.
-- **주요 서비스**: `RoomServiceImpl.java`
-  - `joinRoom`, `leaveRoom`
-  - `setReady(sessionKey, isReady)`: 준비 상태를 토글한다.
-  - `setParticipation(sessionKey, isParticipating)`: 라운드 참여 여부를 설정한다.
-- **컨트롤러**: `RoomController.java`
-  - WebSocket을 통해 위 서비스들을 호출하는 엔드포인트 제공.
-
-### 3.3. `record` (舊 `bid`) 도메인
-- **책임**: 플레이어의 시간 관리. (시간 소모 기록, 남은 시간 계산)
-- **주요 모델**:
-  - `TimeWallet.java`: 플레이어의 시간 지갑.
-    - `String userId`, `String gameId`, `long timeLeft` (남은 시간), `int roundWins` (라운드 승수)
-  - `RoundRecord.java`: 라운드별 시간 소모 기록.
-    - `String userId`, `String roundId`, `LocalDateTime startTime`, `LocalDateTime endTime`, `long duration`
-- **주요 서비스**: `RecordServiceImpl.java` (신규 생성)
-  - `createTimeWallets(gameId, userIds)`: 게임 시작 시 모든 플레이어의 시간 지갑을 생성하고 초기 시간을 할당한다.
-  - `startRecord(userId, roundId)`: `RoundRecord`를 생성하고 시작 시간을 기록한다.
-  - `endRecord(userId, roundId)`: 종료 시간을 기록하고 소모 시간(`duration`)을 계산한다. `TimeWallet`의 `timeLeft`를 차감한다.
-  - `getRoundResult(roundId)`: 해당 라운드의 모든 `RoundRecord`를 반환하여 승자 판정에 사용되도록 한다.
-- **컨트롤러**: `RecordController.java`
-  - `TimeStartEvent`, `TimeEndEvent`를 받아 `RecordService`의 `start/endRecord`를 호출한다.
-
-### 3.4. `game` 도메인
-- **책임**: 게임 전체의 흐름을 지휘하는 **오케스트레이터**.
-- **주요 모델**: `Game.java`, `Round.java`, `Phase.java` (Enum: `WAITING`, `PARTICIPATION_SELECTION`, `AUCTION`, `SETTLEMENT`)
-- **주요 서비스**: `GameServiceImpl.java` (구현 필요)
-  - `startGame(roomId)`:
-    1. `RoomService`에서 준비된 플레이어 목록을 가져온다.
-    2. `RecordService.createTimeWallets`를 호출하여 플레이어들의 시간 지갑을 생성한다.
-    3. `Game` 객체를 생성하고 저장한다.
-    4. `startRound()`를 호출하여 첫 라운드를 시작한다.
-  - `startRound()`:
-    1. `Round` 객체를 생성한다.
-    2. 3초간의 `PARTICIPATION_SELECTION` 페이즈를 시작하고, `RoomService.setParticipation`을 통해 참여자를 확정한다.
-    3. 60초간의 `AUCTION` 페이즈를 시작한다. (서버 스케줄러 활용)
-  - `endRound()`:
-    1. `RecordService.getRoundResult`를 호출하여 이번 라운드 결과를 가져온다.
-    2. 가장 많은 시간을 소모한 플레이어를 승자로 판정하고, `TimeWallet.roundWins`를 1 증가시킨다.
-    3. 라운드 결과를 모든 플레이어에게 브로드캐스트한다.
-    4. 마지막 라운드이면 `endGame()`을 호출, 아니면 `startRound()`를 다시 호출한다.
-  - `endGame()`:
-    1. 최종 승자를 판정한다. (라운드 승수 > 남은 시간 순)
-    2. 최종 결과를 브로드캐스트한다.
+*   [ ] 1. 도메인 분석: room
+    *   [ ] 1.1. 코드 읽기 및 Redis 기반 데이터 모델 분석
+    *   [ ] 1.2. RabbitMQ를 포함한 이벤트 흐름 다이어그램 작성
+*   [ ] 2. 공통 설계 원칙 추출
+    *   [x] 2.1. 도메인 모델링 원칙 (Spring Data Redis)
+    *   [x] 2.2. 서비스 레이어 역할 정의 (비즈니스 로직)
+    *   [x] 2.3. 이벤트 기반 통신 패턴 (ApplicationEvent + RabbitMQ)
+    *   [x] 2.4. WebSocket 엔드포인트 설계 (STOMP)
+*   [ ] 3. `Game` 및 `Round` 도메인 구현
+    *   [x] 3.1. `Game` 도메인 모델 정의 (@RedisHash)
+    *   [x] 3.2. `Game` 레포지토리, 서비스 설계
+    *   [x] 3.3. `Game` 이벤트 및 핸들러/퍼블리셔 설계
+    *   [x] 3.4. `Game` 컨트롤러 및 WebSocket 엔드포인트 설계
+*   [ ] 4. `Record` 도메인 구현 (`TimeStartLog`, `BidResult`)
+    *   [x] 4.1. `Record` 도메인 모델 정의
+    *   [x] 4.2. `Record` 레포지토리, 서비스 설계
+    *   [x] 4.3. `Record` 이벤트 및 컨트롤러 설계
+*   [ ] 5. `GameEntry` 및 게임 흐름 통합
+    *   [x] 5.1. `GameEntry` 모델 설계 (Redis)
+    *   [x] 5.2. 게임 상태 전이 로직 설계 (대기 -> 경매 -> 결과)
+*   [ ] 6. 최종 통합 및 테스트
+    *   [x] 6.1. 통합 테스트 시나리오 작성
+    *   [ ] 6.2. API 문서화 (HTTP/WS)
 
 ---
 
-## 4. 통합 워크플로우 (A-Z)
-1.  **접속 및 방 참여**: `User` 세션 생성 -> `RoomController` -> `RoomService.joinRoom`
-2.  **게임 준비**: `RoomController.setReady` -> 모든 플레이어가 `isReady=true`가 됨.
-3.  **게임 시작**: 방장 또는 시스템이 `GameController.startGame` 호출 -> `GameService.startGame` 실행.
-4.  **시간 지갑 생성**: `GameService`가 `RecordService.createTimeWallets`를 호출.
-5.  **라운드 시작**: `GameService.startRound` 실행. 참여 여부 선택 후 60초 경매 시작.
-6.  **시간 소모**: 플레이어가 `RecordController`로 `TimeStart/End` 이벤트 전송 -> `RecordService`가 시간 기록 및 계산.
-7.  **라운드 종료**: 60초 타이머 만료 -> `GameService.endRound` 실행 -> `RecordService`에서 결과 취합 후 승자 판정 및 점수 업데이트.
-8.  **반복**: 5라운드가 될 때까지 5~7번 과정 반복.
-9.  **게임 종료**: `GameService.endGame` 실행. 최종 승자 판정 및 결과 발표.
+### 다음 1개 단계 상세 계획
 
----
+#### **1. 도메인 분석: room**
 
-## 5. 제안: 구현 순서
-1.  **1단계 (리팩토링)**: `bid` 패키지 관련 이름들을 `record` 등으로 변경.
-2.  **2단계 (핵심 로직 구현)**: `RecordServiceImpl`을 먼저 구현하여 시간 기록 및 계산의 핵심 로직을 완성.
-3.  **3단계 (모델 수정)**: `RoomEntry`, `TimeWallet`에 필요한 필드(`isReady`, `roundWins` 등) 추가.
-4.  **4단계 (오케스트레이션)**: `GameServiceImpl`을 구현하여 2, 3단계에서 만든 서비스와 모델을 조립하며 전체 게임 흐름을 완성.
-5.  **5단계 (컨트롤러 연동)**: 각 컨트롤러가 WebSocket 이벤트를 받아 해당 서비스를 호출하도록 연결.
+*   **목적**: Redis를 데이터 저장소로, RabbitMQ를 메시지 릴레이로 사용하는 `room` 도메인의 구조를 분석하여, 확장성 있는 실시간 애플리케이션의 공통 설계 원칙을 추출하기 위함입니다.
+*   **산출물**: 분석 내용을 기반으로 팀 내부 공유용 설계 문서의 기반을 마련합니다. (별도 파일 생성 없음)
+*   **수행 절차**:
+    1.  `Room`, `RoomEntry` 모델 클래스에 `@RedisHash` 어노테이션과 키 구조가 어떻게 설정되어 있는지 분석합니다.
+    2.  `RoomRepository` 구현체에서 `RedisTemplate` (예: `opsForHash`, `opsForValue`)을 어떻게 사용하여 데이터를 CRUD하는지 확인합니다.
+    3.  `RoomService`가 비즈니스 로직을 처리하며 Redis 기반 레포지토리를 어떻게 호출하는지 분석합니다.
+    4.  `RoomController`의 `@MessageMapping` 엔드포인트 역할을 파악합니다. (변경 없음)
+    5.  `StompPublisher`가 이벤트를 RabbitMQ 토픽으로 발행(publish)하고, 이것이 어떻게 다른 서버 인스턴스와 클라이언트에게 브로드캐스팅되는지 전체 흐름을 추적합니다.
+*   **인터페이스**:
+    *   `WS /app/rooms`: 방 생성 (추정)
+    *   `WS /app/rooms/{roomId}/enter`: 방 입장 (추정)
+    *   `WS /topic/rooms/{roomId}`: 방 상태 구독 (추정)
+*   **데이터 (Redis)**:
+    *   `Room`: Key `rooms:{roomId}` (Hash) -> `{ id: ..., name: ..., ... }`
+    *   `RoomEntry`: Key `room-entries:{roomId}` (Set 또는 Hash) -> `[userId1, userId2, ...]`
+*   **수용 기준**:
+    *   `Room` 객체가 Redis 내에서 어떤 Key와 자료구조로 저장되고 변경되는지 설명할 수 있습니다.
+    *   `Controller`, `Service`, `Repository(RedisTemplate)`, `EventHandler`의 역할을 명확히 설명할 수 있습니다.
+    *   특정 서버 인스턴스에서 발생한 이벤트가 RabbitMQ를 거쳐 다른 서버 인스턴스에 연결된 클라이언트에게까지 전달되는 과정을 설명할 수 있습니다.
+*   **체크리스트**:
+    *   [ ] `Room`, `RoomEntry` 모델의 `@RedisHash` 구조 및 키 전략 분석
+    *   [ ] Repository 계층의 `RedisTemplate` 사용 방식 분석 (`opsForHash` 등)
+    *   [ ] Service 비즈니스 로직과 Redis 데이터 조작 연관 관계 분석
+    *   [ ] `RoomController`의 WebSocket 엔드포인트 역할 식별
+    *   [ ] 이벤트 발행 시 RabbitMQ Relay를 통한 메시지 브로드캐스팅 흐름 추적
+    *   [ ] 분석 내용을 기반으로 수정된 아키텍처 다이어그램 초안 작성

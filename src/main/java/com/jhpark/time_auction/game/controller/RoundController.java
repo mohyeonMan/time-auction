@@ -1,7 +1,7 @@
 package com.jhpark.time_auction.game.controller;
 
 import com.jhpark.time_auction.common.ws.event.Ack;
-import com.jhpark.time_auction.game.handler.GameEventHandler;
+import com.jhpark.time_auction.game.handler.RoundEventHandler;
 import com.jhpark.time_auction.room.service.RoomService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -14,22 +14,32 @@ import java.security.Principal;
 
 @Controller
 @RequiredArgsConstructor
-public class GameController {
+public class RoundController {
 
-    private final GameEventHandler gameEventHandler;
+    private final RoundEventHandler roundEventHandler;
     private final RoomService roomService; // roomEntryId 조회를 위해 주입
 
-    @MessageMapping("/room/{roomId}/game/start")
-    @SendToUser // 요청자에게 Ack 응답
-    public Ack<?> startGame(
+    @MessageMapping("/round/{roundId}/opt-in")
+    @SendToUser
+    public Ack<?> optInToRound(
             Principal principal,
-            @DestinationVariable("roomId") String roomId,
+            @DestinationVariable("roundId") String roundId,
             @Header(name="x-msg-id") String cid,
             @Header(name="x-sent-at") long sentAt
     ) {
-        // principal.getName()은 sessionId이므로, roomEntryId를 조회해야 함
         String roomEntryId = roomService.getRoomEntryBySessionId(principal.getName()).getId();
-        // 방장만 시작할 수 있다는 등의 권한 검사는 추후 SecurityConfig 또는 Service에서 처리
-        return gameEventHandler.handleStartGame(cid, sentAt, roomId, roomEntryId);
+        return roundEventHandler.handleOptIn(cid, sentAt, roundId, roomEntryId);
+    }
+
+    @MessageMapping("/round/{roundId}/opt-out")
+    @SendToUser
+    public Ack<?> optOutOfRound(
+            Principal principal,
+            @DestinationVariable("roundId") String roundId,
+            @Header(name="x-msg-id") String cid,
+            @Header(name="x-sent-at") long sentAt
+    ) {
+        String roomEntryId = roomService.getRoomEntryBySessionId(principal.getName()).getId();
+        return roundEventHandler.handleOptOut(cid, sentAt, roundId, roomEntryId);
     }
 }

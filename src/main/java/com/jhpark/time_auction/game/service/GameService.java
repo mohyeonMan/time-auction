@@ -1,17 +1,17 @@
 package com.jhpark.time_auction.game.service;
 
 import com.jhpark.time_auction.game.model.Game;
-import com.jhpark.time_auction.game.model.Round;
+
+import java.util.List;
 
 public interface GameService {
-    
-    Game startGame(String roomId);
+    Game createGame(String roomId, List<String> roomEntryIds);
 
-    Game endGame(String gameId);
+    Game getGame(String gameId);
 
-    Round startRound(String gameId);
+    void startGame(String gameId);
 
-    Round endRound(String gameId);
-    
+    void startNextRound(String gameId);
 
+    void endGame(String gameId);
 }

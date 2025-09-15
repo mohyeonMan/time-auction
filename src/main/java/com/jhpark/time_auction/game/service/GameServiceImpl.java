@@ -1,132 +1,118 @@
 package com.jhpark.time_auction.game.service;
 
+import com.jhpark.time_auction.common.exception.CustomMessageException;
 import com.jhpark.time_auction.game.model.Game;
+import com.jhpark.time_auction.game.model.GameStatus;
 import com.jhpark.time_auction.game.model.Round;
 import com.jhpark.time_auction.game.repository.GameRepository;
-import com.jhpark.time_auction.record.model.RoundRecord;
-import com.jhpark.time_auction.record.model.TimeWallet;
-import com.jhpark.time_auction.record.service.RecordService;
-import com.jhpark.time_auction.room.model.RoomEntry;
-import com.jhpark.time_auction.room.service.RoomService;
+import com.jhpark.time_auction.user.model.GameEntry;
+import com.jhpark.time_auction.user.service.GameEntryService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
-import java.util.UUID;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
-@Slf4j
 @RequiredArgsConstructor
 public class GameServiceImpl implements GameService {
 
     private final GameRepository gameRepository;
-    private final RoomService roomService;
-    private final RecordService recordService;
+    private final RoundService roundService;
+    private final GameEntryService gameEntryService;
 
-    private static final int ROUND_DURATION_SECONDS = 60;
-    private static final int PARTICIPATION_CHOICE_SECONDS = 3;
-    private static final int MAX_ROUNDS = 5;
     @Override
-    public Game endGame(String gameId) {
-        // TODO Auto-generated method stub
-        return null;
-    }
-    @Override
-    public Round endRound(String gameId) {
-        // TODO Auto-generated method stub
-        return null;
-    }
-    @Override
-    public Game startGame(String roomId) {
-        // TODO Auto-generated method stub
-        return null;
-    }
-    @Override
-    public Round startRound(String gameId) {
-        // TODO Auto-generated method stub
-        return null;
+    public Game createGame(String roomId, List<String> roomEntryIds) {
+        // 이미 해당 방에서 진행중인 게임이 있는지 확인
+        gameRepository.findByRoomId(roomId).ifPresent(game -> {
+            throw new CustomMessageException("이미 게임이 진행중인 방입니다.");
+        });
+
+        Game newGame = Game.create(roomId, roomEntryIds);
+        Game savedGame = gameRepository.save(newGame);
+
+        // 모든 참가자에 대한 GameEntry 초기화
+        roomEntryIds.forEach(roomEntryId -> {
+            gameEntryService.createGameEntry(savedGame.getId(), roomEntryId, savedGame.getTotalTime());
+        });
+
+        return savedGame;
     }
 
-    // @Override
-    // public Game startGame(String roomId) {
-    //     List<RoomEntry> participants = roomService.getReadyUsers(roomId);
-    //     if (participants.size() < 2) {
-    //         throw new IllegalStateException("Cannot start game with less than 2 ready players.");
-    //     }
+    @Override
+    public Game getGame(String gameId) {
+        return gameRepository.findById(gameId)
+                .orElseThrow(() -> new CustomMessageException("게임을 찾을 수 없습니다: " + gameId));
+    }
 
-    //     Game newGame = new Game(UUID.randomUUID().toString(), roomId, 0);
-    //     gameRepository.save(newGame);
+    @Override
+    public void startGame(String gameId) {
+        Game game = getGame(gameId);
 
-    //     List<String> userIds = participants.stream().map(RoomEntry::getSessionId).collect(Collectors.toList());
-    //     recordService.createTimeWallets(newGame.getId(), userIds);
+        if (game.getStatus() != GameStatus.READY) {
+            throw new CustomMessageException("게임이 시작될 준비가 되지 않았습니다.");
+        }
 
-    //     log.info("Game started: {}", newGame.getId());
-    //     startRound(newGame.getId());
-    //     return newGame;
-    // }
+        game.setStatus(GameStatus.IN_PROGRESS);
+        game.setCurrentRound(1); // 첫 라운드 시작
+        gameRepository.save(game);
 
-    // @Override
-    // public Round startRound(String gameId) {
-    //     Game game = gameRepository.findById(gameId).orElseThrow();
-    //     int nextRoundNumber = game.getCurrentRound() + 1;
-    //     String roomId = game.getRoomId();
+        // 첫 라운드 생성 및 시작
+        Round newRound = roundService.createRound(game.getId(), game.getCurrentRound());
+        roundService.startBidding(newRound.getId());
 
-    //     roomService.getEntriesByRoomId(roomId).forEach(entry -> roomService.setParticipation(roomId, entry.getSessionId(), false));
-    //     log.info("Participation phase started for round {} of game {}", nextRoundNumber, gameId);
+        // TODO: 게임 시작 이벤트 브로드캐스팅
+    }
 
-    //     scheduler.schedule(() -> {
-    //         List<RoomEntry> allEntries = roomService.getEntriesByRoomId(roomId);
-    //         allEntries.stream()
-    //             .filter(e -> !e.isParticipating() && recordService.getTimeWallet(e.getSessionId(), gameId).getTimeLeft() > 0)
-    //             .forEach(e -> roomService.setParticipation(roomId, e.getSessionId(), true));
+    @Override
+    public void startNextRound(String gameId) {
+        Game game = getGame(gameId);
 
-    //         game.setCurrentRound(nextRoundNumber);
-    //         gameRepository.save(game);
+        if (game.getStatus() != GameStatus.IN_PROGRESS) {
+            throw new CustomMessageException("게임이 진행 중이 아닙니다.");
+        }
 
-    //         log.info("Round {} starting for game: {}", nextRoundNumber, gameId);
-    //         scheduler.schedule(() -> endRound(gameId), Instant.now().plusSeconds(ROUND_DURATION_SECONDS));
+        if (game.getCurrentRound() >= game.getTotalRounds()) {
+            endGame(gameId); // 모든 라운드 종료 시 게임 종료
+            return;
+        }
 
-    //     }, Instant.now().plusSeconds(PARTICIPATION_CHOICE_SECONDS));
+        game.setCurrentRound(game.getCurrentRound() + 1);
+        gameRepository.save(game);
 
-    //     return new Round(gameId + "_" + nextRoundNumber, gameId, nextRoundNumber);
-    // }
+        // 다음 라운드 생성 및 시작
+        Round newRound = roundService.createRound(game.getId(), game.getCurrentRound());
+        roundService.startBidding(newRound.getId());
 
-    // @Override
-    // public Round endRound(String gameId) {
-    //     Game game = gameRepository.findById(gameId).orElseThrow();
-    //     String roundId = game.getId() + "_" + game.getCurrentRound();
+        // TODO: 다음 라운드 시작 이벤트 브로드캐스팅
+    }
 
-    //     List<RoundRecord> records = recordService.getRoundResult(roundId);
+    @Override
+    public void endGame(String gameId) {
+        Game game = getGame(gameId);
 
-    //     RoundRecord winnerRecord = records.stream()
-    //             .max(Comparator.comparing(RoundRecord::getDuration))
-    //             .orElse(null);
+        if (game.getStatus() == GameStatus.FINISHED) {
+            throw new CustomMessageException("이미 종료된 게임입니다.");
+        }
 
-    //     if (winnerRecord != null) {
-    //         String winnerId = winnerRecord.getUserId();
-    //         recordService.addWinToUser(winnerId, gameId);
-    //         log.info("Round {} winner: {}", game.getCurrentRound(), winnerId);
-    //     }
+        game.setStatus(GameStatus.FINISHED);
+        gameRepository.save(game);
 
-    //     if (game.getCurrentRound() >= MAX_ROUNDS) {
-    //         endGame(gameId);
-    //     }
-    //     else {
-    //         startRound(gameId);
-    //     }
-    //     return new Round(roundId, gameId, game.getCurrentRound());
-    // }
+        // 최종 승자 판정
+        List<GameEntry> gameEntries = game.getRoomEntryIds().stream()
+                .map(roomEntryId -> gameEntryService.getGameEntry(gameId, roomEntryId))
+                .collect(Collectors.toList());
 
-    // @Override
-    // public Game endGame(String gameId) {
-    //     Game game = gameRepository.findById(gameId).orElseThrow();
-    //     log.info("Game ended: {}", gameId);
-    //     // The handler will be responsible for calculating and broadcasting the final winner
-    //     return game;
-    // }
+        Optional<GameEntry> finalWinner = gameEntries.stream()
+                .max(Comparator.comparingInt(GameEntry::getRoundsWon)
+                        .thenComparingLong(GameEntry::getRemainingTime));
+
+        if (finalWinner.isPresent()) {
+            // TODO: 최종 승자 정보 저장 또는 브로드캐스팅
+        }
+
+        // TODO: 게임 종료 이벤트 브로드캐스팅
+    }
 }
