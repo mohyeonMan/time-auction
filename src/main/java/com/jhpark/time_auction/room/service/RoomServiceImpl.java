@@ -1,7 +1,6 @@
 package com.jhpark.time_auction.room.service;
 
 import com.jhpark.time_auction.common.exception.CustomMessageException;
-import com.jhpark.time_auction.common.ws.handler.MessagePublisher;
 import com.jhpark.time_auction.room.model.Room;
 import com.jhpark.time_auction.room.model.RoomEntry;
 import com.jhpark.time_auction.room.repository.RoomEntryRepository;
@@ -13,7 +12,6 @@ import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -46,10 +44,10 @@ public class RoomServiceImpl implements RoomService {
                 .orElseThrow(() -> new CustomMessageException("Room not found : " + roomId));
     }
 
-    @Override
-    public List<Room> getRooms() {
-         return roomRepository.findAll();
-    }
+    // @Override
+    // public List<Room> getRooms() {
+    //      return roomRepository.findAll();
+    // }
 
     @Override
     public void  deleteRoom(String roomId) {
@@ -64,13 +62,13 @@ public class RoomServiceImpl implements RoomService {
         return roomEntryRepository.findAllByRoomId(roomId);
     }
 
-    @Override
-    public List<RoomEntry> getEntries() {
-        return roomEntryRepository.findAll();
-    }
+    // @Override
+    // public List<RoomEntry> getEntries() {
+    //     return roomEntryRepository.findAll();
+    // }
 
     @Override
-    public List<RoomEntry> getReadyUsers(String roomId) {
+    public List<RoomEntry> getReadyEntries(String roomId) {
         return roomEntryRepository.findAllByRoomId(roomId).stream()
                 .filter(RoomEntry::isReady)
                 .collect(Collectors.toList());

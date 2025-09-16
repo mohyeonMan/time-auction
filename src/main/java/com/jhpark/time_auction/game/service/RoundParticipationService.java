@@ -2,11 +2,15 @@ package com.jhpark.time_auction.game.service;
 
 import com.jhpark.time_auction.game.model.RoundParticipation;
 
-import java.util.List;
+import java.util.Set;
 
 public interface RoundParticipationService {
-    void createAllParticipationsForRound(String roundId, List<String> roomEntryIds);
-    RoundParticipation updateParticipation(String roundId, String roomEntryId, boolean isParticipating);
-    boolean checkAllResponded(String roundId, int totalParticipants);
-    List<String> getActualParticipants(String roundId);
+
+    
+    RoundParticipation roundIn(String roundId, String gameEntryId);             // 라운드 참여
+    RoundParticipation roundOut(String roundId, String gameEntryId);            // 라운드 미참여
+
+    Set<String> getRoundInGameEntryIdSet(String roundId);                       // 전원 확인을 위한 EntrySet
+
+    boolean clearRoomParticipation();                                           // 정리
 }

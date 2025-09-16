@@ -4,6 +4,9 @@ import com.jhpark.time_auction.common.exception.CustomMessageException;
 import com.jhpark.time_auction.user.model.GameEntry;
 import com.jhpark.time_auction.user.repository.GameEntryRepository;
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 
 @Service
@@ -26,6 +29,11 @@ public class GameEntryServiceImpl implements GameEntryService {
     public GameEntry getGameEntry(String gameId, String roomEntryId) {
         return gameEntryRepository.findByGameIdAndRoomEntryId(gameId, roomEntryId)
                 .orElseThrow(() -> new CustomMessageException("GameEntry not found for " + roomEntryId + " in game " + gameId));
+    }
+
+    @Override
+    public List<GameEntry> getGameEntries(String gameId) {
+        return gameEntryRepository.findAllByGameId(gameId);
     }
 
     @Override

@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.stereotype.Controller;
 
@@ -17,7 +18,6 @@ import java.security.Principal;
 public class GameController {
 
     private final GameEventHandler gameEventHandler;
-    private final RoomService roomService; // roomEntryId 조회를 위해 주입
 
     @MessageMapping("/room/{roomId}/game/start")
     @SendToUser // 요청자에게 Ack 응답
@@ -25,11 +25,12 @@ public class GameController {
             Principal principal,
             @DestinationVariable("roomId") String roomId,
             @Header(name="x-msg-id") String cid,
-            @Header(name="x-sent-at") long sentAt
+            @Header(name="x-sent-at") long sentAt,
+            @Payload(required = false) Integer totalRound,
+            @Payload(required = false) Integer totalTime
     ) {
-        // principal.getName()은 sessionId이므로, roomEntryId를 조회해야 함
-        String roomEntryId = roomService.getRoomEntryBySessionId(principal.getName()).getId();
-        // 방장만 시작할 수 있다는 등의 권한 검사는 추후 SecurityConfig 또는 Service에서 처리
-        return gameEventHandler.handleStartGame(cid, sentAt, roomId, roomEntryId);
+        return gameEventHandler.handleStartGame(cid, sentAt, roomId, totalRound, totalTime, principal.getName());
     }
+
+    
 }

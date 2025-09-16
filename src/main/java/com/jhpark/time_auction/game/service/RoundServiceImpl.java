@@ -1,7 +1,6 @@
 package com.jhpark.time_auction.game.service;
 
 import com.jhpark.time_auction.common.exception.CustomMessageException;
-import com.jhpark.time_auction.game.model.Game;
 import com.jhpark.time_auction.game.model.Round;
 import com.jhpark.time_auction.game.model.RoundStatus;
 import com.jhpark.time_auction.game.repository.RoundRepository;
@@ -14,7 +13,6 @@ import com.jhpark.time_auction.user.model.GameEntry;
 import com.jhpark.time_auction.user.service.GameEntryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.List;
@@ -32,15 +30,17 @@ public class RoundServiceImpl implements RoundService {
     private final RoundParticipationService roundParticipationService; // RoundParticipationService 주입
 
     @Override
-    public Round createRound(String gameId, int roundNumber, List<String> allGameParticipants) {
+    public Round createRound(String gameId, int roundNumber) {
         // GameService를 통해 Game 객체 조회는 GameService에서 담당
         // Game game = gameService.getGame(gameId); // GameService 주입 제거로 인한 변경
 
         Round newRound = Round.create(gameId, roundNumber); // Round.create는 이제 participants를 받지 않음
         roundRepository.save(newRound);
 
+        List<String> roomEntryIds = gameEntryService.getGameEntries(gameId).stream().map(GameEntry::getRoomEntryId).toList();
+
         // 모든 참가자에 대한 RoundParticipation 객체 생성
-        roundParticipationService.createAllParticipationsForRound(newRound.getId(), allGameParticipants);
+        roundParticipationService.createAllParticipationsForRound(newRound.getId(), roomEntryIds);
 
         return newRound;
     }
@@ -79,9 +79,10 @@ public class RoundServiceImpl implements RoundService {
     }
 
     @Override
-    public void settleRound(String roundId, String gameId) {
+    public void settleRound(String roundId) {
         Round round = roundRepository.findById(roundId)
                 .orElseThrow(() -> new CustomMessageException("라운드를 찾을 수 없습니다: " + roundId));
+        String gameId = round.getGameId();
 
         if (round.getStatus() != RoundStatus.RUNNING) {
             throw new CustomMessageException("라운드 상태가 '진행 중'이 아닙니다.");
@@ -128,7 +129,7 @@ public class RoundServiceImpl implements RoundService {
 
     @Override
     // @Transactional // Redis의 @Transactional은 여러 키에 걸친 복잡한 작업의 완전한 원자성을 보장하지 않음. (MULTI/EXEC 또는 Lua 스크립트 필요)
-    public void recordBidLogEnd(String roundId, String roomEntryId, long timestamp, String gameId) {
+    public void recordBidLogEnd(String roundId, String roomEntryId, long timestamp) {
         // 1. 시작 BidLog 조회 및 삭제 (BidLogService를 통해 접근)
         BidLog startLog = bidLogService.findByRoundIdAndRoomEntryIdAndType(roundId, roomEntryId, BidLogType.START)
                 .orElseThrow(() -> new CustomMessageException("시작 기록을 찾을 수 없습니다. 라운드 시작 이벤트가 누락되었거나 이미 종료되었습니다."));
@@ -141,7 +142,7 @@ public class RoundServiceImpl implements RoundService {
         // 2. GameEntry 업데이트 (남은 시간 차감) (GameEntryService를 통해 접근)
         Round currentRound = roundRepository.findById(roundId)
                 .orElseThrow(() -> new CustomMessageException("라운드를 찾을 수 없습니다: " + roundId));
-        // Game game = gameService.getGame(currentRound.getGameId()); // GameService 주입 제거로 인한 변경
+        String gameId = currentRound.getGameId();
 
         // GameEntryService를 통해 남은 시간 업데이트
         GameEntry gameEntry = gameEntryService.updateRemainingTime(gameId, roomEntryId, consumedTime);
@@ -155,7 +156,7 @@ public class RoundServiceImpl implements RoundService {
 
         // 모든 참여자가 완료했는지 확인하고, 마지막이라면 라운드 정산 트리거
         if (roundParticipationService.getActualParticipants(roundId).size() == currentRound.getBidResultIds().size()) {
-            settleRound(roundId, gameId); // settleRound도 gameId를 받도록 변경
+            settleRound(roundId); // settleRound도 gameId를 받도록 변경
         }
     }
 }

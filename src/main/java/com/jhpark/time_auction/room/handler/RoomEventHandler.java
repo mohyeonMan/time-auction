@@ -19,66 +19,66 @@ public class RoomEventHandler {
     private final RoomService roomService;
     private final MessagePublisher<ServerEvent> publisher;
 
-    public Ack<?> handleCreateEvent(
-        String cid,
-        long sentAt,
-        String sessionId,
-        String roomName
-    ){
+    // public Ack<?> handleCreateEvent(
+    //     String cid,
+    //     long sentAt,
+    //     String sessionId,
+    //     String roomName
+    // ){
 
-        Room room = roomService.createRoom(sessionId, roomName);
+    //     Room room = roomService.createRoom(sessionId, roomName);
         
-        ServerEvent event = ServerEvent.builder()
-            .type(ServerEventType.CREATE_ROOM)
-            .cid(sessionId)
-            .clientAt(sentAt)
-            .payload(room)
-            .build();
+    //     ServerEvent event = ServerEvent.builder()
+    //         .type(ServerEventType.CREATE_ROOM)
+    //         .cid(sessionId)
+    //         .clientAt(sentAt)
+    //         .payload(room)
+    //         .build();
         
-        return Ack.ok(cid, room.getRoomId());
-    }
+    //     return Ack.ok(cid, room.getRoomId());
+    // }
 
-    public Ack<?> handleJoinEvent(
-        String cid,
-        long sentAt,
-        String roomId,
-        String sessionId,
-        String nickname
-    ){
+    // public Ack<?> handleJoinEvent(
+    //     String cid,
+    //     long sentAt,
+    //     String roomId,
+    //     String sessionId,
+    //     String nickname
+    // ){
 
-        RoomEntry entry = roomService.joinRoom(roomId, sessionId, nickname);
+    //     RoomEntry entry = roomService.joinRoom(roomId, sessionId, nickname);
 
-        ServerEvent event = ServerEvent.builder()
-            .type(ServerEventType.JOIN_CONFIRM)
-            .cid(cid)
-            .clientAt(sentAt)
-            .payload(entry)
-            .build();
+    //     ServerEvent event = ServerEvent.builder()
+    //         .type(ServerEventType.JOIN_CONFIRM)
+    //         .cid(cid)
+    //         .clientAt(sentAt)
+    //         .payload(entry)
+    //         .build();
 
-        publisher.publish(Dest.roomEvent(entry.getRoomId()), event);
+    //     publisher.publish(Dest.roomEvent(entry.getRoomId()), event);
 
-        return Ack.ok(cid, entry.getId());
-    }
+    //     return Ack.ok(cid, entry.getId());
+    // }
 
-    public Ack<?> handleLeftEvent(
-        String cid,
-        long sentAt,
-        String roomId,
-        String roomEntryId
-    ){
-        RoomEntry entry = roomService.leaveRoom(roomId, roomEntryId);
+    // public Ack<?> handleLeftEvent(
+    //     String cid,
+    //     long sentAt,
+    //     String roomId,
+    //     String roomEntryId
+    // ){
+    //     RoomEntry entry = roomService.leaveRoom(roomId, roomEntryId);
 
-        ServerEvent event = ServerEvent.builder()
-            .type(ServerEventType.LEAVE_CONFIRM)
-            .cid(cid)
-            .clientAt(sentAt)
-            .payload(entry)
-            .build();
+    //     ServerEvent event = ServerEvent.builder()
+    //         .type(ServerEventType.LEAVE_CONFIRM)
+    //         .cid(cid)
+    //         .clientAt(sentAt)
+    //         .payload(entry)
+    //         .build();
 
-        publisher.publish(Dest.roomEvent(entry.getRoomId()), event);
+    //     publisher.publish(Dest.roomEvent(entry.getRoomId()), event);
 
-        return Ack.ok(cid, entry.getId());
-    }
+    //     return Ack.ok(cid, entry.getId());
+    // }
 
     public Ack<?> handleReadyEvent(
         String cid,

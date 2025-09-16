@@ -24,7 +24,7 @@ public class GameEntry {
     @Indexed
     private String gameId;
     @Indexed
-    private String roomEntryId; // RoomEntry의 ID
+    private String sessionId;
     private long remainingTime; // 플레이어에게 남은 총 시간
     private int roundsWon;
     @TimeToLive

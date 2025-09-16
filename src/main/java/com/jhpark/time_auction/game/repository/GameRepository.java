@@ -8,6 +8,5 @@ import java.util.Optional;
 
 public interface GameRepository extends CrudRepository<Game, String> {
     List<Game> findAll();
-
     Optional<Game> findByRoomId(String roomId);
 }

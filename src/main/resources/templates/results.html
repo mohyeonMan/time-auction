@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Time Auction - Results</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container mt-5">
+    <h2 class="text-center">Game Results</h2>
+    <h3 class="text-center mt-4">Winner: <span id="final-winner">Loading...</span></h3>
+
+    <div class="row mt-5">
+        <div class="col-md-8 offset-md-2">
+            <h4>Final Scores</h4>
+            <table class="table table-striped">
+                <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Nickname</th>
+                    <th>Rounds Won</th>
+                    <th>Time Left (s)</th>
+                </tr>
+                </thead>
+                <tbody id="scoreboard">
+                <!-- Scores will be populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="text-center mt-5">
+        <button class="btn btn-primary btn-lg" onclick="backToLobby()">Back to Lobby</button>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    const gameId = /*[[${gameId}]]*/ 'default-game-id';
+
+    document.addEventListener('DOMContentLoaded', function () {
+        fetchGameResults();
+    });
+
+    function fetchGameResults() {
+        fetch(`/api/games/${gameId}/results`)
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to fetch game results');
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('final-winner').textContent = data.finalWinnerNickname;
+                populateScoreboard(data.finalScores);
+            })
+            .catch(error => {
+                console.error('Error fetching game results:', error);
+                document.getElementById('final-winner').textContent = 'Error loading results';
+                document.getElementById('scoreboard').innerHTML = '<tr><td colspan="4" class="text-danger text-center">Failed to load scores.</td></tr>';
+            });
+    }
+
+    function populateScoreboard(scores) {
+        const scoreboardBody = document.getElementById('scoreboard');
+        scoreboardBody.innerHTML = '';
+
+        // Sort by rounds won (desc), then remaining time (desc)
+        scores.sort((a, b) => b.roundsWon - a.roundsWon || b.remainingTime - a.remainingTime);
+
+        scores.forEach((player, index) => {
+            const row = `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${player.nickname}</td>
+                    <td>${player.roundsWon}</td>
+                    <td>${(player.remainingTime / 1000).toFixed(1)}</td>
+                </tr>
+            `;
+            scoreboardBody.innerHTML += row;
+        });
+    }
+
+    function backToLobby() {
+        sessionStorage.removeItem('nickname');
+        sessionStorage.removeItem('roomEntryId');
+        window.location.href = '/';
+    }
+</script>
+</body>
+</html>

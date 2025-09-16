@@ -22,7 +22,7 @@ public class BidResult {
     @Indexed
     private String roundId;
     @Indexed
-    private String roomEntryId;
+    private String roundParticipantId;
     
     private long startTime;
     private long endTime;

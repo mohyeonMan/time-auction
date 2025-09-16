@@ -1,18 +1,34 @@
 package com.jhpark.time_auction.game.service;
 
+import java.util.List;
+
 import com.jhpark.time_auction.game.model.Round;
+import com.jhpark.time_auction.game.model.RoundParticipation;
 
 public interface RoundService {
-    Round createRound(String gameId, int roundNumber); // gameId와 모든 참가자 ID를 받음
 
-    void optInToRound(String roundId, String roomEntryId);
-    void optOutOfRound(String roundId, String roomEntryId);
+    /*
+     * before : readyNextRound
+     * 해당 gameEntryId의 라운드 참여여부 확인.
+     * 모든 gameEntry가 선택해야 다음으로 넘어감.
+     * next : 
+     */
+    RoundParticipation roundIn(String roundId, String gameEntryId);         //라운드 참여
+    RoundParticipation roundOut(String roundId, String gameEntryId);        //라운드 미참여
 
-    void startBidding(String roundId);
+    /*
+     * before : roundIn, roundOut
+     * round가 시작됨.
+     */
+    // Round startBidding(String roundId);
+    // Round startRound(String gameId, int roundNumber);                       //라운드 시작
+    
+    boolean checkAllResponded(String roundId, List<String> gameEntries);
+    
+    // BidLog recordBidLogStart(String roundId, String gameEntryId, long timestamp);
+    // BidLog recordBidLogEnd(String roundId, String gameEntryId, long timestamp);
 
-    void settleRound(String roundId); // settleRound도 gameId를 받음
+    Round settleRound(String roundId);                                      //라운드 종료.
 
-    // BidLog 기록 및 BidResult 생성 로직
-    void recordBidLogStart(String roundId, String roomEntryId, long timestamp);
-    void recordBidLogEnd(String roundId, String roomEntryId, long timestamp); // recordBidLogEnd도 gameId를 받음
+    boolean clearRound(String roundId);
 }

@@ -5,7 +5,11 @@ import com.jhpark.time_auction.record.model.BidResult;
 import java.util.List;
 
 public interface BidResultService {
-    BidResult createBidResult(String roundId, String roomEntryId, long startTime, long endTime, long consumedTime, long remainingTimeAfterRound);
+    
+    BidResult recordBidResult(String roundId, String gameEntryId, long startTime, long endTime, long remainingTimeAfterRound);
+
     List<BidResult> findByRoundId(String roundId);
-    BidResult save(BidResult bidResult);
+
+    boolean clearBidResultByRoundId(String roundId);
+    boolean clearBidResultByRoundParticipantId(String roundParticipantId);
 }
