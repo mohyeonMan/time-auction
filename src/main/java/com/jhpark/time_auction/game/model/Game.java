@@ -11,6 +11,7 @@ import org.springframework.data.redis.core.TimeToLive;
 import org.springframework.data.redis.core.index.Indexed;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Getter
@@ -25,7 +26,7 @@ public class Game {
     @Indexed
     private String roomId;
 
-    private List<String> roomEntryIds; // 게임 참가자들의 roomEntry.id 목록
+    private int gameEntryCounts;
 
     private int totalRounds = 5; // 기본 5 라운드
 
@@ -40,9 +41,9 @@ public class Game {
     @TimeToLive
     private Long ttl = 3600L; // 1시간
 
-    public static Game create(String roomId, List<String> roomEntryIds) {
+    public static Game create(String roomId) {
         String gameId = "game_" + UUID.randomUUID().toString().substring(0, 8);
         // 기본값: 5라운드, 총 시간 300초
-        return new Game(gameId, roomId, roomEntryIds, 5, 300L, 0, GameStatus.READY, 3600L);
+        return new Game(gameId, roomId, 0, 5, 300L, 0, GameStatus.READY, 3600L);
     }
 }

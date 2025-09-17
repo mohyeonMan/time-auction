@@ -9,6 +9,7 @@ import com.jhpark.time_auction.common.ws.event.ServerEventType;
 import com.jhpark.time_auction.common.ws.handler.MessagePublisher;
 import com.jhpark.time_auction.room.model.Room;
 import com.jhpark.time_auction.room.model.RoomEntry;
+import com.jhpark.time_auction.room.service.RoomEntryService;
 import com.jhpark.time_auction.room.service.RoomService;
 
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class RoomEventHandler {
     private final RoomService roomService;
+    private final RoomEntryService roomEntryService;
     private final MessagePublisher<ServerEvent> publisher;
 
     // public Ack<?> handleCreateEvent(
@@ -86,7 +88,7 @@ public class RoomEventHandler {
         String roomId,
         String roomEntryId
     ){
-        RoomEntry entry = roomService.ready(roomId, roomEntryId);
+        RoomEntry entry = roomEntryService.ready(roomId, roomEntryId);
 
         ServerEvent event = ServerEvent.builder()
             .type(ServerEventType.READY_CONFIRM)
@@ -107,9 +109,9 @@ public class RoomEventHandler {
         String roomId,
         String roomEntryId
     ){
-        RoomEntry entry = roomService.unready(roomId, roomEntryId); 
+        RoomEntry entry = roomEntryService.unready(roomId, roomEntryId); 
         ServerEvent event = ServerEvent.builder()
-            .type(ServerEventType.READY_CONFIRM)
+            .type(ServerEventType.NOT_READY_CONFIRM)
             .cid(cid)
             .clientAt(sentAt)
             .payload(entry)

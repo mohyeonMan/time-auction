@@ -32,7 +32,7 @@ public class Round {
     @Setter
     private RoundStatus status;
 
-    // private Set<String> participants; // RoundParticipation 모델로 분리
+    private int participationCounts; // RoundParticipation 모델로 분리
 
     private Set<String> bidResultIds; // 이번 라운드에 생성된 BidResult의 ID 목록
 
@@ -45,6 +45,6 @@ public class Round {
     public static Round create(String gameId, int roundNumber) {
         String roundId = "round_" + UUID.randomUUID().toString().substring(0, 8);
         // participants는 RoundParticipationService에서 관리
-        return new Round(roundId, gameId, roundNumber, RoundStatus.PARTICIPATION_CHOICE, new HashSet<>(), null, 3600L);
+        return new Round(roundId, gameId, roundNumber, RoundStatus.PARTICIPATION_CHOICE, 0, new HashSet<>(), null, 3600L);
     }
 }

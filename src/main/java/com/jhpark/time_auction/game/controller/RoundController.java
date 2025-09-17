@@ -19,7 +19,7 @@ public class RoundController {
     private final RoundEventHandler roundEventHandler;
     private final RoomService roomService; // roomEntryId 조회를 위해 주입
 
-    @MessageMapping("/round/{roundId}/opt-in")
+    @MessageMapping("/round/{roundId}/round-in")
     @SendToUser
     public Ack<?> optInToRound(
             Principal principal,
@@ -31,7 +31,7 @@ public class RoundController {
         return roundEventHandler.handleOptIn(cid, sentAt, roundId, roomEntryId);
     }
 
-    @MessageMapping("/round/{roundId}/opt-out")
+    @MessageMapping("/round/{roundId}/round-out")
     @SendToUser
     public Ack<?> optOutOfRound(
             Principal principal,

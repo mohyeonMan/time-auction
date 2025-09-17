@@ -1,6 +1,5 @@
 package com.jhpark.time_auction.game.service;
 
-import java.util.List;
 
 import com.jhpark.time_auction.game.model.Game;
 import com.jhpark.time_auction.game.model.GameInfo;
@@ -15,7 +14,7 @@ public interface GameService {
      * 각 game과 사용자의 gameEntryId 를 convertAndSentToUser 로 전달.
      * next : getGameEntry
      */
-    GameInfo startGame(String roomId, Integer totalRound, Integer totalTime, List<String> roomEntryIds);
+    GameInfo startGame(String roomId, Integer totalRound, Integer totalTime);
 
     GameStatus getGameStatus(String gameId);            //현재 게임상태
     
@@ -26,7 +25,7 @@ public interface GameService {
      * 새로운 round를 생성하고, currentRound ++, round시작.
      * next : roundIn, roundOut
      */
-    Round readyNextRound(String gameId);                //다음 라운드 시작
+    // Round readyNextRound(String gameId);                //다음 라운드 시작
 
     Game endGame(String gameId);                        //게임 종료
 

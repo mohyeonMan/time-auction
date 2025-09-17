@@ -9,7 +9,8 @@ public interface GameEntryService {
     GameEntry createGameEntry(String gameId, String roomEntryId, long initialTime);
     
     List<GameEntry> getGameEntries(String gameId);
-    GameEntry getGameEntry(String gameId, String roomEntryId);
-    GameEntry updateRemainingTime(String gameId, String roomEntryId, long consumedTime);
-    GameEntry updateRoundsWon(String gameId, String roomEntryId, int roundsWon);
+    
+    GameEntry getGameEntry(String gameEntryId);
+    GameEntry updateRemainingTime(String gameEntryId, long consumedTime);
+    GameEntry increaseRoundsWon(String gameEntryId);
 }

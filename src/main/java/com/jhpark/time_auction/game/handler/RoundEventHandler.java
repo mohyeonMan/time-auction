@@ -5,47 +5,110 @@ import com.jhpark.time_auction.common.ws.event.Dest;
 import com.jhpark.time_auction.common.ws.event.ServerEvent;
 import com.jhpark.time_auction.common.ws.event.ServerEventType;
 import com.jhpark.time_auction.common.ws.handler.MessagePublisher;
+import com.jhpark.time_auction.game.model.Game;
+import com.jhpark.time_auction.game.model.RoundParticipation;
+import com.jhpark.time_auction.game.model.RoundStatus;
+import com.jhpark.time_auction.game.service.GameService;
+import com.jhpark.time_auction.game.service.RoundParticipationService;
 import com.jhpark.time_auction.game.service.RoundService;
+import com.jhpark.time_auction.user.model.GameEntry;
+import com.jhpark.time_auction.user.service.GameEntryService;
+
+import io.swagger.v3.oas.models.servers.Server;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.Set;
+
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class RoundEventHandler {
+    private final GameService gameService;
+    private final GameEntryService gameEntryService;
     private final RoundService roundService;
+    private final RoundParticipationService roundParticipationService;
     private final MessagePublisher<ServerEvent> publisher;
 
-    public Ack<?> handleOptIn(String cid, long sentAt, String roundId, String roomEntryId) {
-        roundService.optInToRound(roundId, roomEntryId);
+    public Ack<?> handleRoundIn(
+        String cid,
+        long sentAt,
+        String roundId,
+        String gameEntryId
+    ) {
 
-        // 라운드 참가 이벤트 브로드캐스팅
-        ServerEvent event = ServerEvent.builder()
-                .type(ServerEventType.ROUND_IN_CONFIRM)
-                .cid(cid)
-                .clientAt(sentAt)
-                .payload(String.format("User %s has opted in to round %s", roomEntryId, roundId))
-                .build();
+        GameEntry gameEntry = gameEntryService.getGameEntry(gameEntryId);
+        Game game = gameService.getGame(gameEntry.getGameId());
+        String roomId = game.getRoomId();
 
-        // TODO: gameId를 통해 roomId를 조회하여 publish 해야 함
-        // publisher.publish(Dest.roomEvent(roomId), event);
+        RoundParticipation participation = roundParticipationService.roundIn(roundId, gameEntryId);
+        log.info("참가 결정 : gameEntryId : {}, roundId : {}");
 
-        return Ack.ok(cid, null);
+        publisher.publishToUser(gameEntry.getSessionId(), Dest.userPersonal(roomId),
+                ServerEvent.builder()
+                        .type(ServerEventType.ROUND_IN_CONFIRM)
+                        .cid(cid)
+                        .clientAt(sentAt)
+                        .payload(participation)
+                        .build());
+                        
+        startBidSignal(cid, sentAt, roomId, game.getGameEntryIds(), roundId);
+
+        return Ack.ok(cid, participation.getId());
     }
 
-    public Ack<?> handleOptOut(String cid, long sentAt, String roundId, String roomEntryId) {
-        roundService.optOutOfRound(roundId, roomEntryId);
 
-        // 라운드 불참 이벤트 브로드캐스팅
-        ServerEvent event = ServerEvent.builder()
-                .type(ServerEventType.ROUND_OUT_CONFIRM)
-                .cid(cid)
-                .clientAt(sentAt)
-                .payload(String.format("User %s has opted out of round %s", roomEntryId, roundId))
-                .build();
+    public Ack<?> handleRoundOut(
+        String cid,
+        long sentAt,
+        String roundId,
+        String gameEntryId
+    ) {
+        GameEntry gameEntry = gameEntryService.getGameEntry(gameEntryId);
+        Game game = gameService.getGame(gameEntry.getGameId());
+        String roomId = game.getRoomId();
 
-        // TODO: gameId를 통해 roomId를 조회하여 publish 해야 함
-        // publisher.publish(Dest.roomEvent(roomId), event);
+        RoundParticipation participation = roundParticipationService.roundOut(roundId, gameEntryId);
+        log.info("미참가 결정 : gameEntryId : {}, roundId : {}");
 
-        return Ack.ok(cid, null);
+        publisher.publishToUser(gameEntry.getSessionId(), Dest.userPersonal(roomId),
+                ServerEvent.builder()
+                        .type(ServerEventType.ROUND_IN_CONFIRM)
+                        .cid(cid)
+                        .clientAt(sentAt)
+                        .payload(participation)
+                        .build());
+                        
+        startBidSignal(cid, sentAt, roomId, game.getGameEntryCounts(), roundId);
+
+        return Ack.ok(cid, participation.getId());
+    }
+
+    public void startBidSignal(
+        String cid, 
+        long sentAt, 
+        String roomId,
+        int gameEntryCounts, 
+        String roundId
+    ){
+
+        Set<String> choosenEntryIds = roundParticipationService.getChoosenGameEntryIds(roundId);
+
+        if (choosenEntryIds.size() == gameEntryCounts) {
+            log.info("전원 참가 여부 선택 : roundId : {}");
+
+            roundService.setRoundStatus(roundId, RoundStatus.RUNNING);
+
+            publisher.publish(Dest.roomEvent(roomId), 
+                ServerEvent.builder()
+                    .type(ServerEventType.ROUND_START_BROADCAST)
+                    .cid(cid)
+                    .clientAt(sentAt)
+                    .payload(roundId)
+                    .build());
+            
+        }
     }
 }

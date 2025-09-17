@@ -3,7 +3,7 @@ package com.jhpark.time_auction.game.service;
 import java.util.List;
 
 import com.jhpark.time_auction.game.model.Round;
-import com.jhpark.time_auction.game.model.RoundParticipation;
+import com.jhpark.time_auction.game.model.RoundStatus;
 
 public interface RoundService {
 
@@ -13,8 +13,8 @@ public interface RoundService {
      * 모든 gameEntry가 선택해야 다음으로 넘어감.
      * next : 
      */
-    RoundParticipation roundIn(String roundId, String gameEntryId);         //라운드 참여
-    RoundParticipation roundOut(String roundId, String gameEntryId);        //라운드 미참여
+    // RoundParticipation roundIn(String roundId, String gameEntryId);         //라운드 참여
+    // RoundParticipation roundOut(String roundId, String gameEntryId);        //라운드 미참여
 
     /*
      * before : roundIn, roundOut
@@ -22,6 +22,9 @@ public interface RoundService {
      */
     // Round startBidding(String roundId);
     // Round startRound(String gameId, int roundNumber);                       //라운드 시작
+    Round readyNextRound(String gameId);
+
+    Round getRound(String roundID);
     
     boolean checkAllResponded(String roundId, List<String> gameEntries);
     
@@ -29,6 +32,8 @@ public interface RoundService {
     // BidLog recordBidLogEnd(String roundId, String gameEntryId, long timestamp);
 
     Round settleRound(String roundId);                                      //라운드 종료.
+
+    RoundStatus setRoundStatus(String roundId, RoundStatus status);
 
     boolean clearRound(String roundId);
 }
