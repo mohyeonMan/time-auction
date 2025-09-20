@@ -2,11 +2,11 @@ package com.jhpark.time_auction.game.service;
 
 import com.jhpark.time_auction.common.exception.CustomMessageException;
 import com.jhpark.time_auction.game.model.Game;
+import com.jhpark.time_auction.game.model.GameEntry;
 import com.jhpark.time_auction.game.model.GameStatus;
 import com.jhpark.time_auction.game.model.Round;
 import com.jhpark.time_auction.game.repository.GameRepository;
-import com.jhpark.time_auction.user.model.GameEntry;
-import com.jhpark.time_auction.user.service.GameEntryService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

@@ -1,8 +1,9 @@
-package com.jhpark.time_auction.user.service;
+package com.jhpark.time_auction.game.service;
 
 import com.jhpark.time_auction.common.exception.CustomMessageException;
-import com.jhpark.time_auction.user.model.GameEntry;
-import com.jhpark.time_auction.user.repository.GameEntryRepository;
+import com.jhpark.time_auction.game.model.GameEntry;
+import com.jhpark.time_auction.game.repository.GameEntryRepository;
+
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;

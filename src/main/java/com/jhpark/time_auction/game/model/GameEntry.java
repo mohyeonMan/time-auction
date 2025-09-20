@@ -1,4 +1,4 @@
-package com.jhpark.time_auction.user.model;
+package com.jhpark.time_auction.game.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

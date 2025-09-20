@@ -2,12 +2,12 @@ package com.jhpark.time_auction.game.service;
 
 import com.jhpark.time_auction.common.exception.CustomMessageException;
 import com.jhpark.time_auction.game.model.Game;
+import com.jhpark.time_auction.game.model.GameEntry;
 import com.jhpark.time_auction.game.model.GameStatus;
+import com.jhpark.time_auction.game.repository.GameEntryRepository;
 import com.jhpark.time_auction.game.repository.GameRepository;
 import com.jhpark.time_auction.room.service.RoomService;
-import com.jhpark.time_auction.user.model.GameEntry;
-import com.jhpark.time_auction.user.repository.GameEntryRepository;
-import com.jhpark.time_auction.user.service.GameEntryService;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

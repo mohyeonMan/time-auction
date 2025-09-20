@@ -1,7 +1,8 @@
-package com.jhpark.time_auction.user.repository;
+package com.jhpark.time_auction.game.repository;
 
-import com.jhpark.time_auction.user.model.GameEntry;
 import org.springframework.data.repository.CrudRepository;
+
+import com.jhpark.time_auction.game.model.GameEntry;
 
 import java.util.Optional;
 import java.util.List;

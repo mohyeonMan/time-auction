@@ -6,6 +6,7 @@ import com.jhpark.time_auction.common.ws.event.ServerEvent;
 import com.jhpark.time_auction.common.ws.event.ServerEventType;
 import com.jhpark.time_auction.common.ws.handler.MessagePublisher;
 import com.jhpark.time_auction.game.model.Game;
+import com.jhpark.time_auction.game.model.GameEntry;
 import com.jhpark.time_auction.game.model.GameInfo;
 import com.jhpark.time_auction.game.model.Round;
 import com.jhpark.time_auction.game.service.GameService;
@@ -14,7 +15,6 @@ import com.jhpark.time_auction.room.model.Room;
 import com.jhpark.time_auction.room.model.RoomEntry;
 import com.jhpark.time_auction.room.service.RoomEntryService;
 import com.jhpark.time_auction.room.service.RoomService;
-import com.jhpark.time_auction.user.model.GameEntry;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

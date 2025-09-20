@@ -6,13 +6,13 @@ import com.jhpark.time_auction.common.ws.event.ServerEvent;
 import com.jhpark.time_auction.common.ws.event.ServerEventType;
 import com.jhpark.time_auction.common.ws.handler.MessagePublisher;
 import com.jhpark.time_auction.game.model.Game;
+import com.jhpark.time_auction.game.model.GameEntry;
 import com.jhpark.time_auction.game.model.RoundParticipation;
 import com.jhpark.time_auction.game.model.RoundStatus;
+import com.jhpark.time_auction.game.service.GameEntryService;
 import com.jhpark.time_auction.game.service.GameService;
 import com.jhpark.time_auction.game.service.RoundParticipationService;
 import com.jhpark.time_auction.game.service.RoundService;
-import com.jhpark.time_auction.user.model.GameEntry;
-import com.jhpark.time_auction.user.service.GameEntryService;
 
 import io.swagger.v3.oas.models.servers.Server;
 import lombok.RequiredArgsConstructor;
